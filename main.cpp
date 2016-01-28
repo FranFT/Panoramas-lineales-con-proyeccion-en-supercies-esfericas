@@ -185,5 +185,5 @@ Mat marcar_imagen(const Mat& img, vector<Point2f> pts, Scalar& color, int tam_pi
 
 int main(){
 
-	
+	cout << "mensaje de prueba" << endl;
 }
