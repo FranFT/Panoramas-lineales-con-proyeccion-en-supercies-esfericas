@@ -153,6 +153,35 @@ void pintaMI(const vector<vector<Mat> > &imagenes_solucion, char* nombre = "solu
 	pintaI(solucion, nombre);
 }
 
+//// Modificación imágenes.
+// Dibuja en una imagen, dado un punto, una cruz de color (RGB) azul por defecto.
+void marcar_punto(Mat &img, Point2f pt, Scalar& color, int tam_pixel = 2){
+	// Se comprueba que el punto tiene valores correctos.
+	if (pt.x >= 0 && pt.y >= 0){
+		// Dibuja la cruz en el punto pt.
+		line(img, pt - Point2f(0, tam_pixel), pt + Point2f(0, tam_pixel), color);
+		line(img, pt - Point2f(tam_pixel, 0), pt + Point2f(tam_pixel, 0), color);
+		/*line(img, pt - Point2f(0, tam_pixel), pt + Point2f(0, tam_pixel), color);
+		line(img, pt - Point2f(tam_pixel, 0), pt + Point2f(tam_pixel, 0), color);*/
+	}
+}
+
+// Haciendo uso de 'marcar_punto' dibuja un conjunto de puntos en una imagen.
+Mat marcar_imagen(const Mat& img, vector<Point2f> pts, Scalar& color, int tam_pixel = 2){
+	vector<Point2f>::const_iterator it;
+	Mat aux = Mat(img);
+
+	// Si la imagen está en escala de grises, la convertimos a color.
+	if (aux.channels() == 1)
+		cvtColor(aux, aux, COLOR_GRAY2RGB);
+
+	// Pintamos cada punto.
+	for (it = pts.begin(); it != pts.end(); it++)
+		marcar_punto(aux, (*it), color, tam_pixel);
+
+	return aux;
+}
+
 
 int main(){
 
