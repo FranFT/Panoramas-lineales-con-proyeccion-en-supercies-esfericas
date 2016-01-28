@@ -159,8 +159,8 @@ void marcar_punto(Mat &img, Point2f pt, Scalar& color, int tam_pixel = 2){
 	// Se comprueba que el punto tiene valores correctos.
 	if (pt.x >= 0 && pt.y >= 0){
 		// Dibuja la cruz en el punto pt.
-		line(img, pt - Point2f(0, tam_pixel), pt + Point2f(0, tam_pixel), color);
-		line(img, pt - Point2f(tam_pixel, 0), pt + Point2f(tam_pixel, 0), color);
+		line(img, pt - Point2f(0.0, static_cast<float>(tam_pixel)), pt + Point2f(0.0, static_cast<float>(tam_pixel)), color);
+		line(img, pt - Point2f(static_cast<float>(tam_pixel), 0.0), pt + Point2f(static_cast<float>(tam_pixel), 0.0), color);
 		/*line(img, pt - Point2f(0, tam_pixel), pt + Point2f(0, tam_pixel), color);
 		line(img, pt - Point2f(tam_pixel, 0), pt + Point2f(tam_pixel, 0), color);*/
 	}
