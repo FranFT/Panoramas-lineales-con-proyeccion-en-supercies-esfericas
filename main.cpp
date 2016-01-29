@@ -6,7 +6,7 @@ using namespace cv;
 /**********************************************
 ************ Variables globales ***************
 ***********************************************/
-#define FOCAL_LENGHT 700
+#define FOCAL_LENGHT 300
 //#define FOCAL_LENGHT 33
 
 
@@ -201,13 +201,19 @@ Mat marcar_imagen(const Mat& img, vector<Point2f> pts, Scalar& color, int tam_pi
 Mat mapeadoCilindrico(const Mat& imagen, float s, float f){
 	Mat canvas = Mat(1000, 1000, CV_32F);
 	int _x, _y = 0;
-	f = FOCAL_LENGHT;
+
+	// Recorro la imagen. Para cada pixel (x,y,f):
 	for (int x = 0; x < imagen.rows; x++){
+		// Mapeo la coordenada x = x'
 		_x = s * atan(x / f);
+		// Mapeo la coordenada y = y'
 		for (int y = 0; y < imagen.cols; y++){
 			_y = s*(y / sqrt((x*x) + (f*f)));
+
+			// Si las coordenadas mapeadas (x', y') están dentro del canvas.
 			if (_x < canvas.rows && _y < canvas.cols){
-				canvas.at<float>(_x+30, _y+30) = static_cast<float>(imagen.at<uchar>(x, y));
+				// Pinto el contenido del pixel (x,y) original en las coordenadas mapeadas (x',y').
+				canvas.at<float>(_x, _y) = static_cast<float>(imagen.at<uchar>(x, y));
 			}
 			else{
 				cout << "EERRROOORRR" << endl;
@@ -220,6 +226,6 @@ Mat mapeadoCilindrico(const Mat& imagen, float s, float f){
 }
 
 int main(){
-	Mat img = leeimagen("Jack.png", 0);
+	Mat img = leeimagen("BB08.jpg", 0);
 	mapeadoCilindrico(img, FOCAL_LENGHT, FOCAL_LENGHT);
 }
