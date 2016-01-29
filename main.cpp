@@ -3,7 +3,16 @@
 using namespace std;
 using namespace cv;
 
-////// Funciones auxiliares
+/**********************************************
+************ Variables globales ***************
+***********************************************/
+#define FOCAL_LENGHT 700
+//#define FOCAL_LENGHT 33
+
+
+/**********************************************
+*********** Funciones auxiliares **************
+***********************************************/
 //// Entrada / Salida
 // Lee la imagen 'filename' en color o escala de grises en función del parámetro 'flagColor'.
 Mat leeimagen(char* filename, int flagColor){
@@ -153,7 +162,9 @@ void pintaMI(const vector<vector<Mat> > &imagenes_solucion, char* nombre = "solu
 	pintaI(solucion, nombre);
 }
 
-//// Modificación imágenes.
+/**********************************************
+********* Modificación de imágenes ************
+***********************************************/
 // Dibuja en una imagen, dado un punto, una cruz de color (RGB) azul por defecto.
 void marcar_punto(Mat &img, Point2f pt, Scalar& color, int tam_pixel = 2){
 	// Se comprueba que el punto tiene valores correctos.
@@ -183,7 +194,32 @@ Mat marcar_imagen(const Mat& img, vector<Point2f> pts, Scalar& color, int tam_pi
 }
 
 
-int main(){
+/**********************************************
+********** Mapeado de coordenadas *************
+***********************************************/
 
-	cout << "mensaje de prueba" << endl;
+Mat mapeadoCilindrico(const Mat& imagen, float s, float f){
+	Mat canvas = Mat(1000, 1000, CV_32F);
+	int _x, _y = 0;
+	f = FOCAL_LENGHT;
+	for (int x = 0; x < imagen.rows; x++){
+		_x = s * atan(x / f);
+		for (int y = 0; y < imagen.cols; y++){
+			_y = s*(y / sqrt((x*x) + (f*f)));
+			if (_x < canvas.rows && _y < canvas.cols){
+				canvas.at<float>(_x+30, _y+30) = static_cast<float>(imagen.at<uchar>(x, y));
+			}
+			else{
+				cout << "EERRROOORRR" << endl;
+			}
+		}
+	}
+	pintaI(canvas);
+	return canvas;
+
+}
+
+int main(){
+	Mat img = leeimagen("Jack.png", 0);
+	mapeadoCilindrico(img, FOCAL_LENGHT, FOCAL_LENGHT);
 }
