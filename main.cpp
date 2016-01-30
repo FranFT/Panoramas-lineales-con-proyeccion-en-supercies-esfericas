@@ -6,8 +6,7 @@ using namespace cv;
 /**********************************************
 ************ Variables globales ***************
 ***********************************************/
-#define FOCAL_LENGHT 300
-//#define FOCAL_LENGHT 33
+#define FOCAL_LENGHT 3.097
 
 
 /**********************************************
@@ -198,17 +197,17 @@ Mat marcar_imagen(const Mat& img, vector<Point2f> pts, Scalar& color, int tam_pi
 ********** Mapeado de coordenadas *************
 ***********************************************/
 
-Mat mapeadoCilindrico(const Mat& imagen, float s, float f){
-	Mat canvas = Mat(1000, 1000, CV_32F);
+/*Mat mapeadoCilindrico(const Mat& imagen, float f, float s, int xc = 0, int yc = 0){
+	Mat canvas = Mat(imagen.rows + xc, imagen.cols + yc, CV_32F);
 	int _x, _y = 0;
 
 	// Recorro la imagen. Para cada pixel (x,y,f):
 	for (int x = 0; x < imagen.rows; x++){
 		// Mapeo la coordenada x = x'
-		_x = s * atan(x / f);
+		_x = (s * atan(x / f) ) + xc;
 		// Mapeo la coordenada y = y'
 		for (int y = 0; y < imagen.cols; y++){
-			_y = s*(y / sqrt((x*x) + (f*f)));
+			_y = (s*(y / sqrt((x*x) + (f*f)))) + yc;
 
 			// Si las coordenadas mapeadas (x', y') están dentro del canvas.
 			if (_x < canvas.rows && _y < canvas.cols){
@@ -223,9 +222,46 @@ Mat mapeadoCilindrico(const Mat& imagen, float s, float f){
 	pintaI(canvas);
 	return canvas;
 
+}*/
+
+Mat mapeadoCilindrico(const Mat& imagen, float f, float r, int xc = 0, int yc = 0){
+	Mat canvas = Mat(imagen.rows + xc, imagen.cols + yc, CV_8UC1);
+	float denominador;
+	float _x, _y;
+	float ro, h;
+
+	for (float x = 0; x < imagen.cols; x++){
+
+		denominador = 1 / sqrt(pow(x, 2) + pow(f, 2));
+		_x = x * denominador;
+		ro = asin(_x);
+		_x = r*ro + xc;
+
+		for (float y = 0; y < imagen.rows; y++){
+			_y = y * denominador;
+			h = _y;			
+			_y = r*h + yc;
+
+			if (_x < canvas.cols && _y < canvas.rows)
+				canvas.at<uchar>(_y, _x) = imagen.at<uchar>(y, x);
+			else
+				cout << "Error" << endl;
+		}
+	}
+	pintaI(canvas);
+	return canvas;
 }
 
+// http://math.etsu.edu/multicalc/prealpha/Chap3/Chap3-5/part1.htm
+// http://stackoverflow.com/questions/12017790/warp-image-to-appear-in-cylindrical-projection
+/*Point2f cambioCoordenadas(Point2f punto, int w, int h){
+	
+
+}*/
+
+
 int main(){
-	Mat img = leeimagen("BB08.jpg", 0);
-	mapeadoCilindrico(img, FOCAL_LENGHT, FOCAL_LENGHT);
+	Mat img = leeimagen("img1.jpg", 0);
+	//mapeadoCilindrico(img, 20, 20, 10, 10);
+	mapeadoCilindrico(img, img.size().width / 2, img.size().width / 2, 10, 10);
 }
