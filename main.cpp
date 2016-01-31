@@ -198,87 +198,34 @@ Mat marcar_imagen(const Mat& img, vector<Point2f> pts, Scalar& color, int tam_pi
 ***********************************************/
 // http://math.etsu.edu/multicalc/prealpha/Chap3/Chap3-5/part1.htm
 // http://stackoverflow.com/questions/12017790/warp-image-to-appear-in-cylindrical-projection
-/*Mat mapeadoCilindrico(const Mat& imagen, float f, float s, int xc = 0, int yc = 0){
-	Mat canvas = Mat(imagen.rows + xc, imagen.cols + yc, CV_32F);
-	int _x, _y = 0;
 
-	// Recorro la imagen. Para cada pixel (x,y,f):
-	for (int x = 0; x < imagen.rows; x++){
-		// Mapeo la coordenada x = x'
-		_x = (s * atan(x / f) ) + xc;
-		// Mapeo la coordenada y = y'
-		for (int y = 0; y < imagen.cols; y++){
-			_y = (s*(y / sqrt((x*x) + (f*f)))) + yc;
 
-			// Si las coordenadas mapeadas (x', y') están dentro del canvas.
-			if (_x < canvas.rows && _y < canvas.cols){
-				// Pinto el contenido del pixel (x,y) original en las coordenadas mapeadas (x',y').
-				canvas.at<float>(_x, _y) = static_cast<float>(imagen.at<uchar>(x, y));
-			}
-			else{
-				cout << "EERRROOORRR" << endl;
-			}
-		}
-	}
-	pintaI(canvas);
-	return canvas;
-
-}*/
-
-Mat mapeadoCilindrico(const Mat& imagen, float f, float r, int xc = 0, int yc = 0){
-	Mat canvas = Mat(imagen.rows + xc, imagen.cols + yc, CV_8UC1);
-	float denominador;
+Mat mapeadoCilindrico(const Mat& imagen, float f, float r){
+	Mat canvas = Mat(imagen.rows, imagen.cols, CV_8UC1);
 	float _x, _y;
-	float ro, h;
+	int cx = imagen.rows / 2;
+	int cy = imagen.cols / 2;
 
-	for (float x = 0; x < imagen.cols; x++){
+	for (int x = 0; x < imagen.rows; x++){
+		_x = x - cx;
+		_x = r * atan(_x / f);
 
-		denominador = 1 / sqrt(pow(x, 2) + pow(f, 2));
-		_x = x * denominador;
-		ro = asin(_x);
-		_x = r*ro + xc;
+		for (int y = 0; y < imagen.cols; y++){
+			_y = y - cy;	
+			_y = r * (_y / sqrt(pow(_x, 2) + pow(f, 2)));
 
-		for (float y = 0; y < imagen.rows; y++){
-			_y = y * denominador;
-			h = _y;			
-			_y = r*h + yc;
-
-			if (_x < canvas.cols && _y < canvas.rows)
-				canvas.at<uchar>(_y, _x) = imagen.at<uchar>(y, x);
+			if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
+				canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x, y);
 			else
-				cout << "Error" << endl;
+				cout << "Error: Coordenadas fuera de rango." << endl;
 		}
 	}
-	pintaI(canvas);
+	pintaI(canvas, "Mapeado Cilindrico");
 	return canvas;
 }
 
-/*Mat mapeadoEsferico(const Mat& imagen, float f, float r){
-	Mat canvas = Mat(imagen.rows, imagen.cols, CV_8U);
-	float denominador;
-	float _x, _y;
-
-	for (int x = 0; x < imagen.cols; x++){
-		denominador = sqrt(pow(x, 2) + pow(f, 2));
-		_x = r*atan(x / f);
-
-		for (int y = 0; y < imagen.rows; y++){
-			_y = r*atan(y / denominador);
-			if (_x < canvas.cols && _y < canvas.rows)
-				canvas.at<uchar>(_y, _x) = imagen.at<uchar>(y, x);
-			else
-				cout << "Error" << endl;
-		}
-	}
-
-
-	pintaI(canvas);
-	return canvas;
-}*/
-
 Mat mapeadoEsferico(const Mat& imagen, float f, float r){
 	Mat canvas = Mat::zeros(imagen.rows, imagen.cols, CV_8UC1);
-	float denominador;
 	float _x, _y;
 	int cx = imagen.rows / 2;
 	int cy = imagen.cols / 2;
@@ -294,10 +241,58 @@ Mat mapeadoEsferico(const Mat& imagen, float f, float r){
 			if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
 				canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x,y);
 			else
-				cout << "Error" << endl;
+				cout << "Error: Coordenadas fuera de rango." << endl;
 		}
 	}
-	pintaI(canvas);
+	pintaI(canvas, "Mapeado Esferico");
+	return canvas;
+}
+
+Mat mapeadoCilindricoAux(const Mat& imagen, float f, float r){
+	Mat canvas = Mat(imagen.rows, imagen.cols, CV_8UC1);
+	float _x, _y;
+	int cx = imagen.rows / 2;
+	int cy = imagen.cols / 2;
+
+	for (int x = 0; x < imagen.rows; x++){
+		for (int y = 0; y < imagen.cols; y++){
+			_x = x - cx;
+			_y = y - cy;
+
+			_x = r * (_x / sqrt(pow(_y, 2) + pow(f, 2)));
+			_y = r * atan(_y / f);
+
+			if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
+			canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x, y);
+			else
+			cout << "Error: Coordenadas fuera de rango." << endl;
+		}
+	}
+	pintaI(canvas, "Mapeado Cilindrico Aux");
+	return canvas;
+}
+
+Mat mapeadoEsfericoAux(const Mat& imagen, float f, float r){
+	Mat canvas = Mat::zeros(imagen.rows, imagen.cols, CV_8UC1);
+	float _x, _y;
+	int cx = imagen.rows / 2;
+	int cy = imagen.cols / 2;
+
+	for (int x = 0; x < imagen.rows; x++){
+		for (int y = 0; y < imagen.cols; y++){
+			_x = x - cx;
+			_y = y - cy;
+
+			_x = r * atan(_x / sqrt(pow(_y, 2) + pow(f, 2)));
+			_y = r * atan(_y / f);
+
+			if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
+				canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x, y);
+			else
+				cout << "Error: Coordenadas fuera de rango." << endl;
+		}
+	}
+	pintaI(canvas, "Mapeado Esferico Aux");
 	return canvas;
 }
 
@@ -306,7 +301,10 @@ int main(){
 	Mat img = leeimagen("img1.jpg", 0);
 	//Mat img = Mat(10, 10, CV_8UC1);
 	//mapeadoCilindrico(img, 20, 20, 10, 10);
-	//mapeadoCilindrico(img, img.size().width / 2, img.size().width / 2, 10, 10);
-	mapeadoEsferico(img, 500, 500);
+	mapeadoCilindrico(img, img.size().width / 2, img.size().width / 2);
+	mapeadoCilindricoAux(img, img.size().width / 2, img.size().width / 2);
+
+	mapeadoEsferico(img, img.size().width / 2, img.size().width / 2);
+	mapeadoEsfericoAux(img, img.size().width / 2, img.size().width / 2);
 
 }
