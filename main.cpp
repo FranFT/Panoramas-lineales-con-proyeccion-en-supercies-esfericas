@@ -282,35 +282,31 @@ Mat mapeadoEsferico(const Mat& imagen, float f, float r){
 	float _x, _y;
 	int cx = imagen.rows / 2;
 	int cy = imagen.cols / 2;
-	cout << cx << " - " << cy << endl;
-	for (int x = 0; x < imagen.rows; x++){
-		for (int y = 0; y < imagen.cols; y++){
-			_x = x - cx;
-			_y = y - cy;
 
-			_x = r * atan(_x / f);
+	for (int x = 0; x < imagen.rows; x++){
+		_x = x - cx;
+		_x = r * atan(_x / f);
+
+		for (int y = 0; y < imagen.cols; y++){
+			_y = y - cy;
 			_y = r * atan(_y / sqrt(pow(_x, 2) + pow(f, 2)));
 
-			_x += cx;
-			_y += cy;
-
-			if (_x > 0 && _x < canvas.rows && _y > 0 && _y < canvas.rows)
-				canvas.at<uchar>(static_cast<int>(_x), static_cast<int>(_y)) = imagen.at<uchar>(x,y);
+			if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
+				canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x,y);
 			else
 				cout << "Error" << endl;
 		}
 	}
+	pintaI(canvas);
 	return canvas;
 }
 
 int main(){
 	vector<Mat> imagenes;
-	Mat img = leeimagen("Captura.png", 0);
+	Mat img = leeimagen("img1.jpg", 0);
 	//Mat img = Mat(10, 10, CV_8UC1);
 	//mapeadoCilindrico(img, 20, 20, 10, 10);
 	//mapeadoCilindrico(img, img.size().width / 2, img.size().width / 2, 10, 10);
-	Mat img2 = mapeadoEsferico(img, 100, 100);
-	imagenes.push_back(img);
-	imagenes.push_back(img2);
-	pintaMI(imagenes);
+	mapeadoEsferico(img, 500, 500);
+
 }
