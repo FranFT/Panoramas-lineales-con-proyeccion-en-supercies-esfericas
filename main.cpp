@@ -29,6 +29,20 @@ void pintaI(const Mat& im, char* nombre_ventana = "imagen"){
 	destroyWindow(nombre_ventana);
 }
 
+// Muesta una imagen por pantalla en una ventana de nombre 'nombre_ventana'.
+void pintaI(const vector<Mat>& imagenes, char* nombre_ventana = "imagen"){
+	vector<Mat>::const_iterator it;
+	for (it = imagenes.begin(); it != imagenes.end(); ++it){
+		Mat im_copia = Mat(*it);
+		im_copia.convertTo(im_copia, CV_8U);
+
+		namedWindow(nombre_ventana, 1);
+		imshow(nombre_ventana, im_copia);
+		waitKey();
+		destroyWindow(nombre_ventana);
+	}
+}
+
 // Muestra un vector de imágenes en una sola imagen llamada 'solucion' por defecto.
 void pintaMI(const vector<Mat> &imagenes_solucion, char* nombre = "solucion"){
 	// Variables necesarias.
@@ -81,127 +95,6 @@ void pintaMI(const vector<Mat> &imagenes_solucion, char* nombre = "solucion"){
 
 	pintaI(solucion, nombre);
 }
-
-// Muestra una matriz de imágenes en una sola imagen llamada 'solucion' por defecto.
-// En este caso se pasa un vector de vectores de imágenes. La función pintará en la misma
-// fila las imágenes pertenecientes al mismo vector de imagenes. Por tanto, dibujará tantas
-// filas de imágenes como longitud tenga el vector de vectores.
-// Es una función equivalente a la que pinta múltiples imágenes en un solo vector, solo que se
-// repite el proceso para cada uno de los elementos del vector de vectores. Por este motivo no
-// está comentado el código.
-void pintaMI(const vector<vector<Mat> > &imagenes_solucion, char* nombre = "solucion"){
-	int tam_ventana_rows = 0;
-	int tam_ventana_cols = 0;
-	bool color = false;
-	int x_inicio = 0;
-	int aux_x = 0;
-	int aux_y = 0;
-
-	vector<vector<Mat> >::const_iterator it_filas;
-	vector<Mat>::const_iterator it_columnas;
-	vector<int>::const_iterator it;
-	vector<int> y_inicio;
-	Mat solucion, roi, aux;
-
-
-	y_inicio.push_back(0);
-
-	for (it_filas = imagenes_solucion.begin(); it_filas != imagenes_solucion.end(); ++it_filas){
-
-		aux_x = 0;
-		aux_y = 0;
-
-		for (it_columnas = (*it_filas).begin(); it_columnas != (*it_filas).end(); ++it_columnas){
-			aux_x = aux_x + (*it_columnas).cols;
-
-			if (aux_y < (*it_columnas).rows)
-				aux_y = (*it_columnas).rows;
-
-			if ((*it_columnas).channels() == 3)
-				color = true;
-		}
-
-		if (aux_x > tam_ventana_cols)
-			tam_ventana_cols = aux_x;
-
-		tam_ventana_rows += aux_y;
-		y_inicio.push_back(aux_y);
-	}
-
-
-	if (color)
-		solucion = Mat(tam_ventana_rows, tam_ventana_cols, CV_8UC3);
-	else
-		solucion = Mat(tam_ventana_rows, tam_ventana_cols, CV_8UC1);
-
-	for (it_filas = imagenes_solucion.begin(), it = y_inicio.begin(); it_filas != imagenes_solucion.end(); ++it_filas, ++it){
-
-		x_inicio = 0;
-
-		for (it_columnas = (*it_filas).begin(); it_columnas != (*it_filas).end(); ++it_columnas){
-
-			roi = Mat(solucion, Rect(x_inicio, (*it), (*it_columnas).cols, (*it_columnas).rows));
-
-			if (color == true && (*it_columnas).channels() == 1){
-				aux = (*it_columnas).clone();
-				aux.convertTo(aux, CV_8U);
-				cvtColor(aux, aux, COLOR_GRAY2RGB);
-				aux.copyTo(roi);
-			}
-			else{
-				aux = (*it_columnas).clone();
-				aux.convertTo(aux, CV_8U);
-				aux.copyTo(roi);
-			}
-
-			x_inicio = x_inicio + (*it_columnas).cols;
-		}
-	}
-
-	pintaI(solucion, nombre);
-}
-
-void cargar_imagenes(vector<Mat>& imagenes, int color = 0){
-	int num_imagenes = 6;
-	char* nombres[] = { "imagenes/img1.jpg", "imagenes/img2.jpg", "imagenes/img3.jpg",
-						"imagenes/img4.jpg", "imagenes/img5.jpg", "imagenes/img6.jpg" };
-	for (int i = 0; i < 6; i++){
-		Mat temp = leeimagen(nombres[i], color);
-		imagenes.push_back(temp);
-	}
-}
-
-/**********************************************
-********* Modificación de imágenes ************
-***********************************************/
-// Dibuja en una imagen, dado un punto, una cruz de color (RGB) azul por defecto.
-void marcar_punto(Mat &img, Point2f pt, Scalar& color, int tam_pixel = 2){
-	// Se comprueba que el punto tiene valores correctos.
-	if (pt.x >= 0 && pt.y >= 0){
-		// Dibuja la cruz en el punto pt.
-		line(img, pt - Point2f(0.0, static_cast<float>(tam_pixel)), pt + Point2f(0.0, static_cast<float>(tam_pixel)), color);
-		line(img, pt - Point2f(static_cast<float>(tam_pixel), 0.0), pt + Point2f(static_cast<float>(tam_pixel), 0.0), color);
-		/*line(img, pt - Point2f(0, tam_pixel), pt + Point2f(0, tam_pixel), color);
-		line(img, pt - Point2f(tam_pixel, 0), pt + Point2f(tam_pixel, 0), color);*/
-	}
-}
-
-// Haciendo uso de 'marcar_punto' dibuja un conjunto de puntos en una imagen.
-Mat marcar_imagen(const Mat& img, vector<Point2f> pts, Scalar& color, int tam_pixel = 2){
-	vector<Point2f>::const_iterator it;
-	Mat aux = Mat(img);
-
-	// Si la imagen está en escala de grises, la convertimos a color.
-	if (aux.channels() == 1)
-		cvtColor(aux, aux, COLOR_GRAY2RGB);
-
-	// Pintamos cada punto.
-	for (it = pts.begin(); it != pts.end(); it++)
-		marcar_punto(aux, (*it), color, tam_pixel);
-
-	return aux;
-}
-
 
 /**********************************************
 ********** Mapeado de coordenadas *************
@@ -343,6 +236,34 @@ vector<Mat> mapeadoEsferico(const vector<Mat>& imagenes){
 	return salida;
 }
 
+/**********************************************
+**************** Funcionalidad ****************
+***********************************************/
+// Lee y almacena las imágenes en un vector.
+void cargar_imagenes(vector<Mat>& imagenes, int color = 0){
+	int num_imagenes = 6;
+	char* nombres[] = { "imagenes/img1.jpg", "imagenes/img2.jpg", "imagenes/img3.jpg",
+		"imagenes/img4.jpg", "imagenes/img5.jpg", "imagenes/img6.jpg" };
+	for (int i = 0; i < 6; i++){
+		Mat temp = leeimagen(nombres[i], color);
+		imagenes.push_back(temp);
+	}
+}
+// Realiza la proyeccion cilindrica y esferica para distintos valores de f.
+void prueba_de_mapeado(const Mat& imagen){
+	vector<Mat> PCilindricas, PEsfericas;
+	float focal_lenght;
+
+	for (int i = 0; i < 3; i++){
+		focal_lenght = 150 + 100*i;
+		PCilindricas.push_back(mapeadoCilindrico(imagen, focal_lenght, focal_lenght));
+		PEsfericas.push_back(mapeadoEsferico(imagen, focal_lenght, focal_lenght));
+	}
+
+	pintaMI(PCilindricas, "P.Cilindrica con distintos valores de F");
+	pintaMI(PEsfericas, "P.Esferica con distintos valores de F");
+}
+
 int main(){
 	// Variables necesarias.
 	Mat img, img_cilindrica, img_esferica;
@@ -350,10 +271,7 @@ int main(){
 
 	// Prueba del mapeado.
 	img = leeimagen("imagenes/Tablero.png", 0);
-	img_cilindrica = mapeadoCilindrico(img, img.size().width / 2, img.size().width / 2);
-	img_esferica = mapeadoEsferico(img, img.size().width / 2, img.size().width / 2);
-	pintaI(img_cilindrica, "Proyeccion cilindrica.");
-	pintaI(img_esferica, "Proyeccion esferica.");
+	prueba_de_mapeado(img);
 
 	/*
 	*	Realización del mosaico.
@@ -361,4 +279,6 @@ int main(){
 	cargar_imagenes(imagenes_mosaico, 0);
 	PCilindrica = mapeadoCilindrico(imagenes_mosaico);
 	PEsferica = mapeadoEsferico(imagenes_mosaico);
+	
+
 }
