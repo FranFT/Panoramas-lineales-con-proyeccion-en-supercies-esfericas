@@ -249,10 +249,16 @@ Mat mapeadoEsferico(const Mat& imagen, float f, float r){
 }
 
 Mat mapeadoCilindricoAux(const Mat& imagen, float f, float r){
-	Mat canvas = Mat(imagen.rows, imagen.cols, CV_8UC1);
+	Mat canvas;
+	Vec3b pixel;
 	float _x, _y;
 	int cx = imagen.rows / 2;
 	int cy = imagen.cols / 2;
+
+	if (imagen.channels() == 1)
+		canvas = Mat(imagen.rows, imagen.cols, CV_8UC1);
+	else if (imagen.channels() == 3)
+		canvas = Mat(imagen.rows, imagen.cols, CV_8UC3);
 
 	for (int x = 0; x < imagen.rows; x++){
 		for (int y = 0; y < imagen.cols; y++){
@@ -262,12 +268,26 @@ Mat mapeadoCilindricoAux(const Mat& imagen, float f, float r){
 			_x = r * (_x / sqrt(pow(_y, 2) + pow(f, 2)));
 			_y = r * atan(_y / f);
 
-			if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
-			canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x, y);
-			else
-			cout << "Error: Coordenadas fuera de rango." << endl;
+			if (imagen.channels() == 1){
+				if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
+					canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x, y);
+				else
+					cout << "Error: Coordenadas fuera de rango." << endl;
+			}
+			else if (imagen.channels() == 3){
+				if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows){
+					canvas.at<Vec3b>(static_cast<int>(_x + cx), static_cast<int>(_y + cy))[0] = imagen.at<Vec3b>(x, y)[0];
+					canvas.at<Vec3b>(static_cast<int>(_x + cx), static_cast<int>(_y + cy))[1] = imagen.at<Vec3b>(x, y)[1];
+					canvas.at<Vec3b>(static_cast<int>(_x + cx), static_cast<int>(_y + cy))[2] = imagen.at<Vec3b>(x, y)[2];
+				}
+				else
+					cout << "Error: Coordenadas fuera de rango." << endl;
+			}
+
+
 		}
 	}
+
 	pintaI(canvas, "Mapeado Cilindrico Aux");
 	return canvas;
 }
@@ -297,9 +317,8 @@ Mat mapeadoEsfericoAux(const Mat& imagen, float f, float r){
 }
 
 int main(){
-	vector<Mat> imagenes;
 	Mat img = leeimagen("img1.jpg", 0);
-	//Mat img = Mat(10, 10, CV_8UC1);
+
 	//mapeadoCilindrico(img, 20, 20, 10, 10);
 	mapeadoCilindrico(img, img.size().width / 2, img.size().width / 2);
 	mapeadoCilindricoAux(img, img.size().width / 2, img.size().width / 2);
