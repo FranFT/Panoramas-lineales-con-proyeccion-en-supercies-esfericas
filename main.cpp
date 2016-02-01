@@ -219,15 +219,13 @@ Mat mapeadoCilindrico(const Mat& imagen, float f, float r){
 	//		pixel (x,y) de la imagen.
 	// [3]: Deshago el cambio del origen de coordenas a la vez que inserto el valor correspondiente
 	//		de intensidad luminosa de la imagen original en las coordenadas resultantes de la proyección cilíndrica.
-	for (int x = 0; x < imagen.rows; x++){
-		for (int y = 0; y < imagen.cols; y++){
-			// [1]
-			_x = x - cx;
-			_y = y - cy;
+	for (int y = 0; y < imagen.cols; y++){
+		_y = y - cy;										// [1]
+		_y = r * atan(_y / f);								// [2]
 
-			// [2]
-			_x = r * (_x / sqrt(pow(_y, 2) + pow(f, 2)));
-			_y = r * atan(_y / f);
+		for (int x = 0; x < imagen.rows; x++){
+			_x = x - cx;									// [1]
+			_x = r * (_x / sqrt(pow(_y, 2) + pow(f, 2)));	// [2]		
 
 			// [3]
 			if (imagen.channels() == 1){
