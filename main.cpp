@@ -293,28 +293,62 @@ vector<Mat> recortar(const vector<Mat>& imagenes){
 
 		// Copiamos la sección deseada.
 		Mat recortada = Mat((*it),Rect(topeIzquierda,0,(*it).cols-(topeIzquierda+((*it).cols-topeDerecha)),(*it).rows));
-		pintaI(recortada);
 		salida.push_back(recortada);
 	}
 
 	return salida;
 }
 
+Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool esferico=false){
+	int ancho = 1900;
+	int alto = 1000;
+	int tipo = imagenes.at(0).type();
+
+	vector<Mat> PCilindrica, PEsferica;
+	vector<Mat> Recorte_PCilindrica, Recorte_PEsferica;
+	Mat panorama, panoramaAux;
+
+	if (cilindrico){
+		PCilindrica = mapeadoCilindrico(imagenes);
+		Recorte_PCilindrica = recortar(PCilindrica);
+		panorama = Mat(alto, ancho, tipo);
+		int umbral = 700;
+
+		Mat roi = Mat(panorama, Rect(0, 0, Recorte_PCilindrica.at(0).cols, Recorte_PCilindrica.at(0).rows));
+		Recorte_PCilindrica.at(0).copyTo(roi);
+		pintaI(panorama);
+		for (int i = 1; i < 2; i++){
+			Mat roi = Mat(panorama, Rect(i*Recorte_PCilindrica.at(i).cols-umbral,0, Recorte_PCilindrica.at(i).cols, Recorte_PCilindrica.at(i).rows));
+			Recorte_PCilindrica.at(i).copyTo(roi);
+		}
+
+		pintaI(panorama);
+
+	}
+	if (esferico){
+		PEsferica = mapeadoEsferico(imagenes);
+		Recorte_PEsferica = recortar(PEsferica);
+	}
+	
+	return panorama;
+}
+
 int main(){
 	// Variables necesarias.
 	Mat tablero;
-	vector<Mat> imagenes_mosaico, PCilindrica, PEsferica;
+	vector<Mat> imagenes_mosaico;
 
 	// Prueba del mapeado.
-	tablero = leeimagen("imagenes/Tablero.png", 0);
-	prueba_de_mapeado(tablero);
+	//tablero = leeimagen("imagenes/Tablero.png", 0);
+	//prueba_de_mapeado(tablero);
 
 	/*
 	*	Realización del mosaico.
 	*/
 	cargar_imagenes(imagenes_mosaico, 1);
-	PCilindrica = mapeadoCilindrico(imagenes_mosaico);
-	PEsferica = mapeadoEsferico(imagenes_mosaico);
-	recortar(PCilindrica);
-	recortar(PEsferica);
+	crearPanorama(imagenes_mosaico);
+
+	//PCilindrica = mapeadoCilindrico(imagenes_mosaico);
+	//PEsferica = mapeadoEsferico(imagenes_mosaico);
+
 }
