@@ -200,24 +200,36 @@ Mat marcar_imagen(const Mat& img, vector<Point2f> pts, Scalar& color, int tam_pi
 // http://stackoverflow.com/questions/12017790/warp-image-to-appear-in-cylindrical-projection
 
 Mat mapeadoCilindrico(const Mat& imagen, float f, float r){
+	// Variables necesarias.
 	Mat canvas;
 	float _x, _y;
 	int cx = imagen.rows / 2;
 	int cy = imagen.cols / 2;
 
+	// Elegimos el tipo de representación en función de los canales de la imagen de entrada.
 	if (imagen.channels() == 1)
 		canvas = Mat(imagen.rows, imagen.cols, CV_8UC1);
 	else if (imagen.channels() == 3)
 		canvas = Mat(imagen.rows, imagen.cols, CV_8UC3);
 
+	// Para cada uno de los píxeles (x,y) de la imagen de entrada:
+	// [1]: Hago un cambio en el sistema de referencia de coordenadas. Para ello traslado el
+	//		origen de coordenadas hacia el centro de la imagen.
+	// [2]: Aplico las ecuaciones para la proyección cilíndrica al rayo 3D (x,y,f) que pasa por el
+	//		pixel (x,y) de la imagen.
+	// [3]: Deshago el cambio del origen de coordenas a la vez que inserto el valor correspondiente
+	//		de intensidad luminosa de la imagen original en las coordenadas resultantes de la proyección cilíndrica.
 	for (int x = 0; x < imagen.rows; x++){
 		for (int y = 0; y < imagen.cols; y++){
+			// [1]
 			_x = x - cx;
 			_y = y - cy;
 
+			// [2]
 			_x = r * (_x / sqrt(pow(_y, 2) + pow(f, 2)));
 			_y = r * atan(_y / f);
 
+			// [3]
 			if (imagen.channels() == 1){
 				if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
 					canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x, y);
@@ -233,34 +245,42 @@ Mat mapeadoCilindrico(const Mat& imagen, float f, float r){
 				else
 					cout << "Error: Coordenadas fuera de rango." << endl;
 			}
-
-
 		}
 	}
 
-	pintaI(canvas, "Mapeado Cilindrico Aux");
+	// Devuelvo la imagen mapeada.
 	return canvas;
 }
 
 Mat mapeadoEsferico(const Mat& imagen, float f, float r){
+	// Variables necesarias.
 	Mat canvas;
 	float _x, _y;
 	int cx = imagen.rows / 2;
 	int cy = imagen.cols / 2;
 
+	// Elegimos el tipo de representación en función de los canales de la imagen de entrada.
 	if (imagen.channels() == 1)
 		canvas = Mat(imagen.rows, imagen.cols, CV_8UC1);
 	else if (imagen.channels() == 3)
 		canvas = Mat(imagen.rows, imagen.cols, CV_8UC3);
 
+	// Para cada uno de los píxeles (x,y) de la imagen de entrada:
+	// [1]: Hago un cambio en el sistema de referencia de coordenadas. Para ello traslado el
+	//		origen de coordenadas hacia el centro de la imagen.
+	// [2]: Aplico las ecuaciones para la proyección cilíndrica al rayo 3D (x,y,f) que pasa por el
+	//		pixel (x,y) de la imagen.
+	// [3]: Deshago el cambio del origen de coordenas a la vez que inserto el valor correspondiente
+	//		de intensidad luminosa de la imagen original en las coordenadas resultantes de la proyección cilíndrica.
 	for (int x = 0; x < imagen.rows; x++){
-		_x = x - cx;
-		_x = r * atan(_x / f);
+		_x = x - cx;											// [1]
+		_x = r * atan(_x / f);									// [2]
 
 		for (int y = 0; y < imagen.cols; y++){
-			_y = y - cy;
-			_y = r * atan(_y / sqrt(pow(_x, 2) + pow(f, 2)));
+			_y = y - cy;										// [1]
+			_y = r * atan(_y / sqrt(pow(_x, 2) + pow(f, 2)));	// [2]
 
+																// [3]
 			if (imagen.channels() == 1){
 				if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
 					canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x, y);
@@ -278,13 +298,16 @@ Mat mapeadoEsferico(const Mat& imagen, float f, float r){
 			}
 		}
 	}
-	pintaI(canvas, "Mapeado Esferico");
+
+	// Devuelvo la imagen mapeada.
 	return canvas;
 }
 
 int main(){
 	Mat img = leeimagen("img1.jpg", 1);
-	mapeadoCilindrico(img, img.size().width / 2, img.size().width / 2);
-	mapeadoEsferico(img, img.size().width / 2, img.size().width / 2);
+	Mat img_cilindrica = mapeadoCilindrico(img, img.size().width / 2, img.size().width / 2);
+	Mat img_esferica = mapeadoEsferico(img, img.size().width / 2, img.size().width / 2);
 
+	pintaI(img_cilindrica, "Proyeccion cilindrica.");
+	pintaI(img_esferica, "Proyeccion esferica.");
 }
