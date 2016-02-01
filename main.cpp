@@ -6,7 +6,7 @@ using namespace cv;
 /**********************************************
 ************ Variables globales ***************
 ***********************************************/
-#define FOCAL_LENGHT 3.097
+
 
 
 /**********************************************
@@ -161,6 +161,16 @@ void pintaMI(const vector<vector<Mat> > &imagenes_solucion, char* nombre = "solu
 	pintaI(solucion, nombre);
 }
 
+void cargar_imagenes(vector<Mat>& imagenes, int color = 0){
+	int num_imagenes = 6;
+	char* nombres[] = { "imagenes/img1.jpg", "imagenes/img2.jpg", "imagenes/img3.jpg",
+						"imagenes/img4.jpg", "imagenes/img5.jpg", "imagenes/img6.jpg" };
+	for (int i = 0; i < 6; i++){
+		Mat temp = leeimagen(nombres[i], color);
+		imagenes.push_back(temp);
+	}
+}
+
 /**********************************************
 ********* Modificación de imágenes ************
 ***********************************************/
@@ -301,11 +311,54 @@ Mat mapeadoEsferico(const Mat& imagen, float f, float r){
 	return canvas;
 }
 
-int main(){
-	Mat img = leeimagen("img1.jpg", 1);
-	Mat img_cilindrica = mapeadoCilindrico(img, img.size().width / 2, img.size().width / 2);
-	Mat img_esferica = mapeadoEsferico(img, img.size().width / 2, img.size().width / 2);
+// Aplica el mapeado cilíndrico a un conjunto de imagenes.
+vector<Mat> mapeadoCilindrico(const vector<Mat>& imagenes){
+	// Variables necesarias.
+	vector<Mat> salida;
+	vector<Mat>::const_iterator it;
 
+	// Calculo la distacia focal estandar.
+	float focal_lenght = imagenes.at(0).size().width / 2;
+
+	// Aplico la proyección a cada una de las imágenes.
+	for (it = imagenes.begin(); it != imagenes.end(); ++it)
+		salida.push_back(mapeadoCilindrico((*it), focal_lenght, focal_lenght));
+
+	return salida;
+}
+
+// Aplica el mapeado esférico a un conjunto de imagenes.
+vector<Mat> mapeadoEsferico(const vector<Mat>& imagenes){
+	// Variables necesarias.
+	vector<Mat> salida;
+	vector<Mat>::const_iterator it;
+
+	// Calculo la distacia focal estandar.
+	float focal_lenght = imagenes.at(0).size().width / 2;
+
+	// Aplico la proyección a cada una de las imágenes.
+	for (it = imagenes.begin(); it != imagenes.end(); ++it)
+		salida.push_back(mapeadoEsferico((*it), focal_lenght, focal_lenght));
+
+	return salida;
+}
+
+int main(){
+	// Variables necesarias.
+	Mat img, img_cilindrica, img_esferica;
+	vector<Mat> imagenes_mosaico, PCilindrica, PEsferica;
+
+	// Prueba del mapeado.
+	img = leeimagen("imagenes/Tablero.png", 0);
+	img_cilindrica = mapeadoCilindrico(img, img.size().width / 2, img.size().width / 2);
+	img_esferica = mapeadoEsferico(img, img.size().width / 2, img.size().width / 2);
 	pintaI(img_cilindrica, "Proyeccion cilindrica.");
 	pintaI(img_esferica, "Proyeccion esferica.");
+
+	/*
+	*	Realización del mosaico.
+	*/
+	cargar_imagenes(imagenes_mosaico, 0);
+	PCilindrica = mapeadoCilindrico(imagenes_mosaico);
+	PEsferica = mapeadoEsferico(imagenes_mosaico);
 }
