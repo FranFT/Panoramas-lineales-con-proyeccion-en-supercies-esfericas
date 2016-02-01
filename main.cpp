@@ -264,21 +264,57 @@ void prueba_de_mapeado(const Mat& imagen){
 	pintaMI(PEsfericas, "P.Esferica con distintos valores de F");
 }
 
+vector<Mat> recortar(const vector<Mat>& imagenes){
+	// Variables necesarias
+	vector<Mat> salida;
+	vector<Mat>::const_iterator it;
+	int mitad;
+	int topeIzquierda = -1;
+	int topeDerecha = -1;
+
+	// Ajustamos cada imagen al borde de la ventana.
+	for (it = imagenes.begin(); it != imagenes.end(); ++it){
+		// Creamos una copia para facilitar el acceso a los pixels en cualquier caso.
+		Mat copia = (*it).clone();
+		if (copia.channels() == 3)
+			cvtColor(copia, copia, CV_RGB2GRAY);
+
+		mitad = (*it).rows / 2;
+
+		// Buscamos el primer pixel con contenido por la izquierda y por la derecha en la fila central de la imagen.
+		for (int i = 0; i < (*it).cols && topeIzquierda == -1; i++){
+			if (copia.at<uchar>(mitad, i) != NULL)
+				topeIzquierda = i;
+		}
+
+		for (int i = (*it).cols - 1; i > 0 && topeDerecha == -1; i--)
+			if (copia.at<uchar>(Point2i(i, mitad)) != NULL)
+				topeDerecha = i;
+
+		// Copiamos la sección deseada.
+		Mat recortada = Mat((*it),Rect(topeIzquierda,0,(*it).cols-(topeIzquierda+((*it).cols-topeDerecha)),(*it).rows));
+		pintaI(recortada);
+		salida.push_back(recortada);
+	}
+
+	return salida;
+}
+
 int main(){
 	// Variables necesarias.
-	Mat img, img_cilindrica, img_esferica;
+	Mat tablero;
 	vector<Mat> imagenes_mosaico, PCilindrica, PEsferica;
 
 	// Prueba del mapeado.
-	img = leeimagen("imagenes/Tablero.png", 0);
-	prueba_de_mapeado(img);
+	tablero = leeimagen("imagenes/Tablero.png", 0);
+	prueba_de_mapeado(tablero);
 
 	/*
 	*	Realización del mosaico.
 	*/
-	cargar_imagenes(imagenes_mosaico, 0);
+	cargar_imagenes(imagenes_mosaico, 1);
 	PCilindrica = mapeadoCilindrico(imagenes_mosaico);
 	PEsferica = mapeadoEsferico(imagenes_mosaico);
-	
-
+	recortar(PCilindrica);
+	recortar(PEsferica);
 }
