@@ -199,58 +199,8 @@ Mat marcar_imagen(const Mat& img, vector<Point2f> pts, Scalar& color, int tam_pi
 // http://math.etsu.edu/multicalc/prealpha/Chap3/Chap3-5/part1.htm
 // http://stackoverflow.com/questions/12017790/warp-image-to-appear-in-cylindrical-projection
 
-
 Mat mapeadoCilindrico(const Mat& imagen, float f, float r){
-	Mat canvas = Mat(imagen.rows, imagen.cols, CV_8UC1);
-	float _x, _y;
-	int cx = imagen.rows / 2;
-	int cy = imagen.cols / 2;
-
-	for (int x = 0; x < imagen.rows; x++){
-		_x = x - cx;
-		_x = r * atan(_x / f);
-
-		for (int y = 0; y < imagen.cols; y++){
-			_y = y - cy;	
-			_y = r * (_y / sqrt(pow(_x, 2) + pow(f, 2)));
-
-			if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
-				canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x, y);
-			else
-				cout << "Error: Coordenadas fuera de rango." << endl;
-		}
-	}
-	pintaI(canvas, "Mapeado Cilindrico");
-	return canvas;
-}
-
-Mat mapeadoEsferico(const Mat& imagen, float f, float r){
-	Mat canvas = Mat::zeros(imagen.rows, imagen.cols, CV_8UC1);
-	float _x, _y;
-	int cx = imagen.rows / 2;
-	int cy = imagen.cols / 2;
-
-	for (int x = 0; x < imagen.rows; x++){
-		_x = x - cx;
-		_x = r * atan(_x / f);
-
-		for (int y = 0; y < imagen.cols; y++){
-			_y = y - cy;
-			_y = r * atan(_y / sqrt(pow(_x, 2) + pow(f, 2)));
-
-			if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
-				canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x,y);
-			else
-				cout << "Error: Coordenadas fuera de rango." << endl;
-		}
-	}
-	pintaI(canvas, "Mapeado Esferico");
-	return canvas;
-}
-
-Mat mapeadoCilindricoAux(const Mat& imagen, float f, float r){
 	Mat canvas;
-	Vec3b pixel;
 	float _x, _y;
 	int cx = imagen.rows / 2;
 	int cy = imagen.cols / 2;
@@ -292,38 +242,49 @@ Mat mapeadoCilindricoAux(const Mat& imagen, float f, float r){
 	return canvas;
 }
 
-Mat mapeadoEsfericoAux(const Mat& imagen, float f, float r){
-	Mat canvas = Mat::zeros(imagen.rows, imagen.cols, CV_8UC1);
+Mat mapeadoEsferico(const Mat& imagen, float f, float r){
+	Mat canvas;
 	float _x, _y;
 	int cx = imagen.rows / 2;
 	int cy = imagen.cols / 2;
 
+	if (imagen.channels() == 1)
+		canvas = Mat(imagen.rows, imagen.cols, CV_8UC1);
+	else if (imagen.channels() == 3)
+		canvas = Mat(imagen.rows, imagen.cols, CV_8UC3);
+
 	for (int x = 0; x < imagen.rows; x++){
+		_x = x - cx;
+		_x = r * atan(_x / f);
+
 		for (int y = 0; y < imagen.cols; y++){
-			_x = x - cx;
 			_y = y - cy;
+			_y = r * atan(_y / sqrt(pow(_x, 2) + pow(f, 2)));
 
-			_x = r * atan(_x / sqrt(pow(_y, 2) + pow(f, 2)));
-			_y = r * atan(_y / f);
-
-			if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
-				canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x, y);
-			else
-				cout << "Error: Coordenadas fuera de rango." << endl;
+			if (imagen.channels() == 1){
+				if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
+					canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x, y);
+				else
+					cout << "Error: Coordenadas fuera de rango." << endl;
+			}
+			else if (imagen.channels() == 3){
+				if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows){
+					canvas.at<Vec3b>(static_cast<int>(_x + cx), static_cast<int>(_y + cy))[0] = imagen.at<Vec3b>(x, y)[0];
+					canvas.at<Vec3b>(static_cast<int>(_x + cx), static_cast<int>(_y + cy))[1] = imagen.at<Vec3b>(x, y)[1];
+					canvas.at<Vec3b>(static_cast<int>(_x + cx), static_cast<int>(_y + cy))[2] = imagen.at<Vec3b>(x, y)[2];
+				}
+				else
+					cout << "Error: Coordenadas fuera de rango." << endl;
+			}
 		}
 	}
-	pintaI(canvas, "Mapeado Esferico Aux");
+	pintaI(canvas, "Mapeado Esferico");
 	return canvas;
 }
 
 int main(){
-	Mat img = leeimagen("img1.jpg", 0);
-
-	//mapeadoCilindrico(img, 20, 20, 10, 10);
+	Mat img = leeimagen("img1.jpg", 1);
 	mapeadoCilindrico(img, img.size().width / 2, img.size().width / 2);
-	mapeadoCilindricoAux(img, img.size().width / 2, img.size().width / 2);
-
 	mapeadoEsferico(img, img.size().width / 2, img.size().width / 2);
-	mapeadoEsfericoAux(img, img.size().width / 2, img.size().width / 2);
 
 }
