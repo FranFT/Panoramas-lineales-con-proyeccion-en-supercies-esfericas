@@ -243,8 +243,8 @@ vector<Mat> mapeadoEsferico(const vector<Mat>& imagenes){
 void cargar_imagenes(vector<Mat>& imagenes, int color = 0){
 	int num_imagenes = 6;
 	char* nombres[] = { "imagenes/img1.jpg", "imagenes/img2.jpg", "imagenes/img3.jpg",
-		"imagenes/img4.jpg", "imagenes/img5.jpg", "imagenes/img6.jpg" };
-	for (int i = 0; i < 6; i++){
+		"imagenes/img4.jpg" , "imagenes/img5.jpg", "imagenes/img6.jpg" };
+	for (int i = 0; i < num_imagenes; i++){
 		Mat temp = leeimagen(nombres[i], color);
 		imagenes.push_back(temp);
 	}
@@ -299,14 +299,114 @@ vector<Mat> recortar(const vector<Mat>& imagenes){
 	return salida;
 }
 
-int calcular_traslacion_relativa(const Mat& imagenIzq, const Mat& imagenDcha, int num_iteraciones = -1){
+int calcular_traslacion_relativa(const Mat& imagen1, const Mat& imagen2, bool Right2Left = true, int num_iteraciones = -1){
 	// Variables necesarias.
-	int ancho_region = 100;
-	int incremento_traslacion = 10;
+	int ancho_region = 150;
+	bool dentro_imagen = true;
+	int traslacion = 0;
+	double error = 0.0;
+	double error_min = 0.0;
+	int num_pixels_traslacion = 0;
+
+	Mat _imagen1 = imagen1.clone();
+	Mat _imagen2 = imagen2.clone();
+	Point2i inicio_region_fija, inicio_region_movil;
+	Size size_region = Size(ancho_region, _imagen1.size().height/2);
+
+	// Trato la entrada.
+	if (_imagen1.channels() == 3 || _imagen2.channels() == 3){
+		cvtColor(_imagen1, _imagen1, CV_RGB2GRAY);
+		cvtColor(_imagen2, _imagen2, CV_RGB2GRAY);
+	}
+
+	// Si la traslación es de derecha a izquierda.
+	if (Right2Left){
+		inicio_region_fija = Point2i(0, _imagen2.size().height / 4);
+		Mat region_fija = Mat(_imagen2, Rect(inicio_region_fija, size_region));
+		while (dentro_imagen){
+
+			if (_imagen1.cols - size_region.width - traslacion > 0)
+				inicio_region_movil = Point2i(_imagen1.cols - size_region.width - traslacion, _imagen1.size().height / 4);
+			else
+				dentro_imagen = false;
+
+			if (dentro_imagen){
+				Mat region_movil = Mat(_imagen1, Rect(inicio_region_movil, size_region));
+
+				for (int x = 0; x < region_movil.cols; x++){
+					for (int y = 0; y < region_movil.rows; y++){
+						error += pow(region_movil.at<uchar>(Point2i(x, y)) - region_fija.at<uchar>(Point2i(x, y)), 2);
+					}
+				}
+
+				if (traslacion == 0 || error < error_min){
+					error_min = error;
+					num_pixels_traslacion = traslacion;
+				}
+
+				error = 0.0;
+				traslacion++;
+			}			
+		}
+
+		return num_pixels_traslacion;
+	}
+	else{
+		inicio_region_fija = Point2i(_imagen1.size().width - size_region.width, _imagen1.size().height / 4);
+		Mat region_fija = Mat(_imagen1, Rect(inicio_region_fija, size_region));
+		while (dentro_imagen){
+
+			if (size_region.width + traslacion < _imagen2.cols)
+				inicio_region_movil = Point2i(traslacion, _imagen2.size().height / 4);
+			else
+				dentro_imagen = false;
+
+			if (dentro_imagen){
+				Mat region_movil = Mat(_imagen2, Rect(inicio_region_movil, size_region));
+
+				for (int x = 0; x < region_movil.cols; x++){
+					for (int y = 0; y < region_movil.rows; y++){
+						error += pow(region_movil.at<uchar>(Point2i(x, y)) - region_fija.at<uchar>(Point2i(x, y)), 2);
+					}
+				}
+
+				if (traslacion == 0 || error < error_min){
+					error_min = error;
+					num_pixels_traslacion = traslacion;
+				}
+
+				error = 0.0;
+				traslacion++;
+			}
+		}
+
+		return num_pixels_traslacion;
+	}
+}
+
+
+Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool esferico = false){
+	//int alto = 1000;
+	int ancho = 0;
+	int tipo = imagenes.at(0).type();
+	int traslacion = 0;
+	vector<int> traslaciones;
+
+	vector<Mat> PCilindrica, PEsferica;
+	vector<Mat> Recorte_PCilindrica, Recorte_PEsferica;
+	Mat panorama;
+	Point2i posicion_de_copiado = Point2i(0, 0);
+	Mat roi;
+
+	return panorama;
+}
+/*int calcular_traslacion_relativa(const Mat& imagenIzq, const Mat& imagenDcha, int num_iteraciones = -1){
+	// Variables necesarias.
+	int ancho_region = 150;
+	int incremento_traslacion = 1;
 	bool dentro_imagen = true;
 	int max_it;
 	int num_pixels_traslacion = 0;
-	float umbral = 0.0005;
 	double error = 0.0;
 	double error_min = 0.0;
 
@@ -342,22 +442,22 @@ int calcular_traslacion_relativa(const Mat& imagenIzq, const Mat& imagenDcha, in
 			Mat region1 = Mat(_imagenIzq, Rect(inicio_region1, size_region));
 
 			// Una vez tenemos situadas ambas regiones, calculamos la distancia que hay entre ambas.
-			for (int x = 0; x < region1.cols; x++){
-				for (int y = 0; y < region1.rows; y++){
+			for (int x = 0; x < region1.cols; x+=2){
+				for (int y = 0; y < region1.rows; y+=2){
 					error += pow(region1.at<uchar>(Point2i(x, y)) - region2.at<uchar>(Point2i(x, y)), 2);
 				}
 			}
 
-			if (iteraciones == 0 || error <= error_min){
+			if (iteraciones == 0 || error < error_min){
 				error_min = error;
 				num_pixels_traslacion = traslacion;
 			}
 			error = 0.0;
 		}
-		else	cout << "Escaneado Finalizado." << endl;
+		//else	cout << "Escaneado Finalizado en iteracion: " << iteraciones <<endl;
 	}
 
-	return num_pixels_traslacion + ancho_region;
+	return num_pixels_traslacion;// +ancho_region;
 }
 
 Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool esferico=false){
@@ -374,40 +474,39 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool esfe
 	Mat roi;
 
 	// Calculamos la traslación relativa entre cada pareja de imágenes.
-	for (int i = 1; i < imagenes.size(); i++)
-		traslaciones.push_back(calcular_traslacion_relativa(imagenes.at(i - 1), imagenes.at(i)));
+	//for (int i = 1; i < imagenes.size(); i++)
+		//traslaciones.push_back(calcular_traslacion_relativa(imagenes.at(i - 1), imagenes.at(i)));
 
 	if (cilindrico){
 		// Realizamos el mapeado cilíndrico y recortamos el sobrante izquierdo y derecho.
 		PCilindrica = mapeadoCilindrico(imagenes);
 		Recorte_PCilindrica = recortar(PCilindrica);
 
+		for (int i = 0; i < imagenes.size()-1; i++){
+			int temp = calcular_traslacion_relativa(Recorte_PCilindrica.at(i), Recorte_PCilindrica.at(i+1));
+			cout << temp << ", ";
+			traslaciones.push_back(temp);
+		}
+
 		// Calculo el ancho final del panorama.
 		ancho = Recorte_PCilindrica.at(0).cols;
 		for (int i = 0; i < traslaciones.size(); i++)
 			ancho = ancho + (Recorte_PCilindrica.at(i + 1).cols - traslaciones.at(i));
 		
+		// Inicialmente el panorama contiene la primera imagen por la izquierda.
 		panorama = Mat(Recorte_PCilindrica.at(0).rows, ancho, tipo);
 		roi = Mat(panorama, Rect(posicion_de_copiado, Recorte_PCilindrica.at(0).size()));
 		Recorte_PCilindrica.at(0).copyTo(roi);
-
-		posicion_de_copiado.x = posicion_de_copiado.x + (Recorte_PCilindrica.at(1).cols - traslaciones.at(0));
-		roi = Mat(panorama, Rect(posicion_de_copiado, Recorte_PCilindrica.at(1).size()));
-		Recorte_PCilindrica.at(1).copyTo(roi);
 		pintaI(panorama);
-
-		// Inicialmente el panorama contiene la primera imagen por la izquierda.
-		/*panorama = Mat(Recorte_PCilindrica.at(0).rows, ancho, tipo);
-		roi = Mat(panorama, Rect(posicion_de_copiado, Recorte_PCilindrica.at(0).size()));
-		Recorte_PCilindrica.at(0).copyTo(roi);
 
 		// Vamos añadiendo el resto de imágenes.
 		for (int i = 0; i < traslaciones.size(); i++){
 			posicion_de_copiado.x = posicion_de_copiado.x + (Recorte_PCilindrica.at(i + 1).cols - traslaciones.at(i));
+			cout << "Posicion x: " << posicion_de_copiado.x << endl;
 			roi = Mat(panorama, Rect(posicion_de_copiado, Recorte_PCilindrica.at(i + 1).size()));
 			Recorte_PCilindrica.at(i+1).copyTo(roi);
 			pintaI(panorama);
-		}*/
+		}
 	}
 	if (esferico){
 		PEsferica = mapeadoEsferico(imagenes);
@@ -415,7 +514,7 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool esfe
 	}
 	
 	return panorama;
-}
+}*/
 
 int main(){
 	// Variables necesarias.
@@ -429,7 +528,7 @@ int main(){
 	/*
 	*	Realización del mosaico.
 	*/
-	cargar_imagenes(imagenes_mosaico, 1);
+	cargar_imagenes(imagenes_mosaico, 0);
 	crearPanorama(imagenes_mosaico);
 
 	//PCilindrica = mapeadoCilindrico(imagenes_mosaico);
