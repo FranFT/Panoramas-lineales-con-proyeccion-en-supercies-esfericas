@@ -327,8 +327,6 @@ int calcular_traslacion_relativa(const Mat& imagenIzq, const Mat& imagenDcha, in
 
 	// Region de la segunda imagen que se usará para calcular la distancia cuadrática media.
 	Mat region2 = Mat(_imagenDcha, Rect(inicio_region2, size_region));
-	pintaI(region2);
-
 
 	// Calculo la distancia cuadrática media para una traslación determinada. Para ello:
 	for (int iteraciones = 0, traslacion = 0; iteraciones < max_it && dentro_imagen; iteraciones++, traslacion+=incremento_traslacion){
@@ -356,37 +354,51 @@ int calcular_traslacion_relativa(const Mat& imagenIzq, const Mat& imagenDcha, in
 			}
 			error = 0.0;
 		}
-		//else	cout << "Escaneado Finalizado." << endl;
+		else	cout << "Escaneado Finalizado." << endl;
 	}
 
 	return num_pixels_traslacion + ancho_region;
 }
 
 Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool esferico=false){
-	int ancho = 1900;
-	int alto = 1000;
+	//int alto = 1000;
+	int ancho = 0;
 	int tipo = imagenes.at(0).type();
+	int traslacion = 0;
+	vector<int> traslaciones;
 
 	vector<Mat> PCilindrica, PEsferica;
 	vector<Mat> Recorte_PCilindrica, Recorte_PEsferica;
-	Mat panorama, panoramaAux;
+	Mat panorama;
+	Point2i posicion_de_copiado = Point2i(0, 0);
+	Mat roi;
+
+	// Calculamos la traslación relativa entre cada pareja de imágenes.
+	for (int i = 1; i < imagenes.size(); i++)
+		traslaciones.push_back(calcular_traslacion_relativa(imagenes.at(i - 1), imagenes.at(i)));
 
 	if (cilindrico){
+		// Realizamos el mapeado cilíndrico y recortamos el sobrante izquierdo y derecho.
 		PCilindrica = mapeadoCilindrico(imagenes);
 		Recorte_PCilindrica = recortar(PCilindrica);
-		panorama = Mat(alto, ancho, tipo);
-		calcular_traslacion_relativa(imagenes.at(0), imagenes.at(1));
-		/*int umbral = 700;
-		Mat roi = Mat(panorama, Rect(0, 0, Recorte_PCilindrica.at(0).cols, Recorte_PCilindrica.at(0).rows));
+
+		// Calculo el ancho final del panorama.
+		ancho = Recorte_PCilindrica.at(0).cols;
+		for (int i = 0; i < traslaciones.size(); i++)
+			ancho = ancho + (Recorte_PCilindrica.at(i + 1).cols - traslaciones.at(i));
+		
+		// Inicialmente el panorama contiene la primera imagen por la izquierda.
+		panorama = Mat(Recorte_PCilindrica.at(0).rows, ancho, tipo);
+		roi = Mat(panorama, Rect(posicion_de_copiado, Recorte_PCilindrica.at(0).size()));
 		Recorte_PCilindrica.at(0).copyTo(roi);
-		pintaI(panorama);
-		for (int i = 1; i < 2; i++){
-			Mat roi = Mat(panorama, Rect(i*Recorte_PCilindrica.at(i).cols-umbral,0, Recorte_PCilindrica.at(i).cols, Recorte_PCilindrica.at(i).rows));
-			Recorte_PCilindrica.at(i).copyTo(roi);
+
+		// Vamos añadiendo el resto de imágenes.
+		for (int i = 0; i < traslaciones.size(); i++){
+			posicion_de_copiado.x = posicion_de_copiado.x + (Recorte_PCilindrica.at(i + 1).cols - traslaciones.at(i));
+			roi = Mat(panorama, Rect(posicion_de_copiado, Recorte_PCilindrica.at(i + 1).size()));
+			Recorte_PCilindrica.at(i+1).copyTo(roi);
+			pintaI(panorama);
 		}
-
-		pintaI(panorama);*/
-
 	}
 	if (esferico){
 		PEsferica = mapeadoEsferico(imagenes);
