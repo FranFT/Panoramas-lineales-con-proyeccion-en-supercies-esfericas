@@ -387,8 +387,17 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool esfe
 		for (int i = 0; i < traslaciones.size(); i++)
 			ancho = ancho + (Recorte_PCilindrica.at(i + 1).cols - traslaciones.at(i));
 		
-		// Inicialmente el panorama contiene la primera imagen por la izquierda.
 		panorama = Mat(Recorte_PCilindrica.at(0).rows, ancho, tipo);
+		roi = Mat(panorama, Rect(posicion_de_copiado, Recorte_PCilindrica.at(0).size()));
+		Recorte_PCilindrica.at(0).copyTo(roi);
+
+		posicion_de_copiado.x = posicion_de_copiado.x + (Recorte_PCilindrica.at(1).cols - traslaciones.at(0));
+		roi = Mat(panorama, Rect(posicion_de_copiado, Recorte_PCilindrica.at(1).size()));
+		Recorte_PCilindrica.at(1).copyTo(roi);
+		pintaI(panorama);
+
+		// Inicialmente el panorama contiene la primera imagen por la izquierda.
+		/*panorama = Mat(Recorte_PCilindrica.at(0).rows, ancho, tipo);
 		roi = Mat(panorama, Rect(posicion_de_copiado, Recorte_PCilindrica.at(0).size()));
 		Recorte_PCilindrica.at(0).copyTo(roi);
 
@@ -398,7 +407,7 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool esfe
 			roi = Mat(panorama, Rect(posicion_de_copiado, Recorte_PCilindrica.at(i + 1).size()));
 			Recorte_PCilindrica.at(i+1).copyTo(roi);
 			pintaI(panorama);
-		}
+		}*/
 	}
 	if (esferico){
 		PEsferica = mapeadoEsferico(imagenes);
