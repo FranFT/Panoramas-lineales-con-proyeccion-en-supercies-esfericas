@@ -263,7 +263,7 @@ void prueba_de_mapeado(const Mat& imagen){
 	pintaMI(PCilindricas, "P.Cilindrica con distintos valores de F");
 	pintaMI(PEsfericas, "P.Esferica con distintos valores de F");
 }
-
+// Ajusta los bordes laterales de la imagen.
 vector<Mat> recortar(const vector<Mat>& imagenes){
 	// Variables necesarias
 	vector<Mat> salida;
@@ -299,6 +299,69 @@ vector<Mat> recortar(const vector<Mat>& imagenes){
 	return salida;
 }
 
+int calcular_traslacion_relativa(const Mat& imagenIzq, const Mat& imagenDcha, int num_iteraciones = -1){
+	// Variables necesarias.
+	int ancho_region = 100;
+	int incremento_traslacion = 10;
+	bool dentro_imagen = true;
+	int max_it;
+	int num_pixels_traslacion = 0;
+	float umbral = 0.0005;
+	double error = 0.0;
+	double error_min = 0.0;
+
+	Mat _imagenIzq = imagenIzq.clone();
+	Mat _imagenDcha = imagenDcha.clone();
+	Point2i inicio_region1 = Point2i(0, 0);
+	Point2i inicio_region2 = Point2i(0, 0);
+	Size size_region = Size(ancho_region, _imagenIzq.size().height);
+
+	// Trato la entrada
+	if (_imagenIzq.channels() == 3 || _imagenDcha.channels() == 3){
+		cvtColor(_imagenIzq, _imagenIzq, CV_RGB2GRAY);
+		cvtColor(_imagenDcha, _imagenDcha, CV_RGB2GRAY);
+	}
+
+	// Fijo el número máximo de iteraciones.
+	(num_iteraciones == -1) ? max_it = _imagenIzq.cols - ancho_region : max_it = num_iteraciones;
+
+	// Region de la segunda imagen que se usará para calcular la distancia cuadrática media.
+	Mat region2 = Mat(_imagenDcha, Rect(inicio_region2, size_region));
+	pintaI(region2);
+
+
+	// Calculo la distancia cuadrática media para una traslación determinada. Para ello:
+	for (int iteraciones = 0, traslacion = 0; iteraciones < max_it && dentro_imagen; iteraciones++, traslacion+=incremento_traslacion){
+
+		// Definimos el movimiento de la región 1 asegurándonos que seguimos dentro de la imagen.
+		if (_imagenIzq.cols - size_region.width - traslacion > 0)
+			inicio_region1.x = _imagenIzq.cols - size_region.width - traslacion;
+		else
+			dentro_imagen = false;
+		
+		if (dentro_imagen){
+			// Finalmente defino la region.
+			Mat region1 = Mat(_imagenIzq, Rect(inicio_region1, size_region));
+
+			// Una vez tenemos situadas ambas regiones, calculamos la distancia que hay entre ambas.
+			for (int x = 0; x < region1.cols; x++){
+				for (int y = 0; y < region1.rows; y++){
+					error += pow(region1.at<uchar>(Point2i(x, y)) - region2.at<uchar>(Point2i(x, y)), 2);
+				}
+			}
+
+			if (iteraciones == 0 || error <= error_min){
+				error_min = error;
+				num_pixels_traslacion = traslacion;
+			}
+			error = 0.0;
+		}
+		//else	cout << "Escaneado Finalizado." << endl;
+	}
+
+	return num_pixels_traslacion + ancho_region;
+}
+
 Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool esferico=false){
 	int ancho = 1900;
 	int alto = 1000;
@@ -312,8 +375,8 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool esfe
 		PCilindrica = mapeadoCilindrico(imagenes);
 		Recorte_PCilindrica = recortar(PCilindrica);
 		panorama = Mat(alto, ancho, tipo);
-		int umbral = 700;
-
+		calcular_traslacion_relativa(imagenes.at(0), imagenes.at(1));
+		/*int umbral = 700;
 		Mat roi = Mat(panorama, Rect(0, 0, Recorte_PCilindrica.at(0).cols, Recorte_PCilindrica.at(0).rows));
 		Recorte_PCilindrica.at(0).copyTo(roi);
 		pintaI(panorama);
@@ -322,7 +385,7 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool esfe
 			Recorte_PCilindrica.at(i).copyTo(roi);
 		}
 
-		pintaI(panorama);
+		pintaI(panorama);*/
 
 	}
 	if (esferico){
