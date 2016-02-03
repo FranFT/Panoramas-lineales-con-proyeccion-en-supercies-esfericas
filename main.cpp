@@ -301,7 +301,7 @@ vector<Mat> recortar(const vector<Mat>& imagenes){
 
 int calcular_traslacion_relativa(const Mat& imagen1, const Mat& imagen2, bool Right2Left = true, int num_iteraciones = -1){
 	// Variables necesarias.
-	int ancho_region = 150;
+	int ancho_region = 50;
 	bool dentro_imagen = true;
 	int traslacion = 0;
 	double error = 0.0;
@@ -348,8 +348,6 @@ int calcular_traslacion_relativa(const Mat& imagen1, const Mat& imagen2, bool Ri
 				traslacion++;
 			}			
 		}
-
-		return num_pixels_traslacion;
 	}
 	else{
 		inicio_region_fija = Point2i(_imagen1.size().width - size_region.width, _imagen1.size().height / 4);
@@ -379,85 +377,9 @@ int calcular_traslacion_relativa(const Mat& imagen1, const Mat& imagen2, bool Ri
 				traslacion++;
 			}
 		}
-
-		return num_pixels_traslacion;
-	}
-}
-
-
-Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool esferico = false){
-	//int alto = 1000;
-	int ancho = 0;
-	int tipo = imagenes.at(0).type();
-	int traslacion = 0;
-	vector<int> traslaciones;
-
-	vector<Mat> PCilindrica, PEsferica;
-	vector<Mat> Recorte_PCilindrica, Recorte_PEsferica;
-	Mat panorama;
-	Point2i posicion_de_copiado = Point2i(0, 0);
-	Mat roi;
-
-	return panorama;
-}
-/*int calcular_traslacion_relativa(const Mat& imagenIzq, const Mat& imagenDcha, int num_iteraciones = -1){
-	// Variables necesarias.
-	int ancho_region = 150;
-	int incremento_traslacion = 1;
-	bool dentro_imagen = true;
-	int max_it;
-	int num_pixels_traslacion = 0;
-	double error = 0.0;
-	double error_min = 0.0;
-
-	Mat _imagenIzq = imagenIzq.clone();
-	Mat _imagenDcha = imagenDcha.clone();
-	Point2i inicio_region1 = Point2i(0, 0);
-	Point2i inicio_region2 = Point2i(0, 0);
-	Size size_region = Size(ancho_region, _imagenIzq.size().height);
-
-	// Trato la entrada
-	if (_imagenIzq.channels() == 3 || _imagenDcha.channels() == 3){
-		cvtColor(_imagenIzq, _imagenIzq, CV_RGB2GRAY);
-		cvtColor(_imagenDcha, _imagenDcha, CV_RGB2GRAY);
 	}
 
-	// Fijo el número máximo de iteraciones.
-	(num_iteraciones == -1) ? max_it = _imagenIzq.cols - ancho_region : max_it = num_iteraciones;
-
-	// Region de la segunda imagen que se usará para calcular la distancia cuadrática media.
-	Mat region2 = Mat(_imagenDcha, Rect(inicio_region2, size_region));
-
-	// Calculo la distancia cuadrática media para una traslación determinada. Para ello:
-	for (int iteraciones = 0, traslacion = 0; iteraciones < max_it && dentro_imagen; iteraciones++, traslacion+=incremento_traslacion){
-
-		// Definimos el movimiento de la región 1 asegurándonos que seguimos dentro de la imagen.
-		if (_imagenIzq.cols - size_region.width - traslacion > 0)
-			inicio_region1.x = _imagenIzq.cols - size_region.width - traslacion;
-		else
-			dentro_imagen = false;
-		
-		if (dentro_imagen){
-			// Finalmente defino la region.
-			Mat region1 = Mat(_imagenIzq, Rect(inicio_region1, size_region));
-
-			// Una vez tenemos situadas ambas regiones, calculamos la distancia que hay entre ambas.
-			for (int x = 0; x < region1.cols; x+=2){
-				for (int y = 0; y < region1.rows; y+=2){
-					error += pow(region1.at<uchar>(Point2i(x, y)) - region2.at<uchar>(Point2i(x, y)), 2);
-				}
-			}
-
-			if (iteraciones == 0 || error < error_min){
-				error_min = error;
-				num_pixels_traslacion = traslacion;
-			}
-			error = 0.0;
-		}
-		//else	cout << "Escaneado Finalizado en iteracion: " << iteraciones <<endl;
-	}
-
-	return num_pixels_traslacion;// +ancho_region;
+	return num_pixels_traslacion + ancho_region;
 }
 
 Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool esferico=false){
@@ -514,7 +436,7 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool esfe
 	}
 	
 	return panorama;
-}*/
+}
 
 int main(){
 	// Variables necesarias.
