@@ -241,9 +241,9 @@ vector<Mat> mapeadoEsferico(const vector<Mat>& imagenes){
 ***********************************************/
 // Lee y almacena las imágenes en un vector.
 void cargar_imagenes(vector<Mat>& imagenes, int color = 0){
-	int num_imagenes = 6;
+	int num_imagenes = 5;
 	char* nombres[] = { "imagenes/img1.jpg", "imagenes/img2.jpg", "imagenes/img3.jpg",
-		"imagenes/img4.jpg" , "imagenes/img5.jpg", "imagenes/img6.jpg" };
+		"imagenes/img4.jpg", "imagenes/img5.jpg"};
 	for (int i = 0; i < num_imagenes; i++){
 		Mat temp = leeimagen(nombres[i], color);
 		imagenes.push_back(temp);
@@ -299,19 +299,17 @@ vector<Mat> recortar(const vector<Mat>& imagenes){
 	return salida;
 }
 
-int calcular_traslacion_relativa(const Mat& imagen1, const Mat& imagen2, bool Right2Left = true, int num_iteraciones = -1){
+int calcular_traslacion_relativa(const Mat& imagen1, const Mat& imagen2, bool cilindrico = true){
 	// Variables necesarias.
-	int ancho_region = 50;
-	bool dentro_imagen = true;
-	int traslacion = 0;
-	double error = 0.0;
-	double error_min = 0.0;
+	int ancho_region, alto_region, traslacion, desplazamiento_region;
 	int num_pixels_traslacion = 0;
+	bool dentro_imagen = true;
+	double error, error_min;
 
 	Mat _imagen1 = imagen1.clone();
 	Mat _imagen2 = imagen2.clone();
 	Point2i inicio_region_fija, inicio_region_movil;
-	Size size_region = Size(ancho_region, _imagen1.size().height/2);
+	Size size_region;
 
 	// Trato la entrada.
 	if (_imagen1.channels() == 3 || _imagen2.channels() == 3){
@@ -319,81 +317,63 @@ int calcular_traslacion_relativa(const Mat& imagen1, const Mat& imagen2, bool Ri
 		cvtColor(_imagen2, _imagen2, CV_RGB2GRAY);
 	}
 
-	// Si se desea alinear la imagen1 con la imagen2 por la dereche de la imagen1:
+	// Se desea alinear la imagen1 con la imagen2 por la derecha de la imagen1:
 	//		|imagen1| <--- |imagen2|
-	if (Right2Left){
-		// Fijo la región de referencia, que será la región fija.
-		inicio_region_fija = Point2i(0, _imagen2.size().height / 4);
-		Mat region_fija = Mat(_imagen2, Rect(inicio_region_fija, size_region));
+	if (cilindrico)
+		desplazamiento_region = 0;
+	else
+		desplazamiento_region = _imagen1.size().width / 6;
 
-		// Mientras la región móvil se encuentre dentro de la imagen.
-		while (dentro_imagen){
+	// Ajusto los parámetros de las regiones que serán comparadas en cada imagen.
+	traslacion = 0;
+	error = 0.0;
+	error_min = 0.0;
 
-			// Compruebo si con el siguiente movimiento estará dentro de la imagen.
-			if (_imagen1.cols - size_region.width - traslacion > 0)
-				inicio_region_movil = Point2i(_imagen1.cols - size_region.width - traslacion, inicio_region_fija.y );
-			else
-				dentro_imagen = false;
+	// Defino el tamaño de la region.
+	ancho_region = 60;
+	alto_region = _imagen1.size().height / 2;
+	desplazamiento_region = 0;
+	size_region = Size(ancho_region, alto_region);
 
-			// Si se encuentra dentro:
-			if (dentro_imagen){
-				// Defino dicha región.
-				Mat region_movil = Mat(_imagen1, Rect(inicio_region_movil, size_region));
+	// Fijo la región de referencia a la hora de comparar imágenes, que será la región fija.
+	inicio_region_fija = Point2i(desplazamiento_region, _imagen2.size().height / 4);
+	Mat region_fija = Mat(_imagen2, Rect(inicio_region_fija, size_region));
 
-				// Calculo el error cuadrático de la región fija y la región móvil.
-				for (int x = 0; x < region_movil.cols; x++){
-					for (int y = 0; y < region_movil.rows; y++){
-						error += pow(region_movil.at<uchar>(Point2i(x, y)) - region_fija.at<uchar>(Point2i(x, y)), 2);
-					}
+	// Mientras la región móvil se encuentre dentro de la imagen.
+	while (dentro_imagen){
+
+		// Compruebo si con el siguiente movimiento estará dentro de la imagen.
+		if (_imagen1.cols - size_region.width - traslacion > 0)
+			inicio_region_movil = Point2i(_imagen1.cols - size_region.width - traslacion, inicio_region_fija.y );
+		else
+			dentro_imagen = false;
+
+		// Si se encuentra dentro:
+		if (dentro_imagen){
+			// Defino dicha región.
+			Mat region_movil = Mat(_imagen1, Rect(inicio_region_movil, size_region));
+
+			// Calculo el error cuadrático de la región fija y la región móvil.
+			for (int x = 0; x < region_movil.cols; x++){
+				for (int y = 0; y < region_movil.rows; y++){
+					error += pow(region_fija.at<uchar>(Point2i(x, y)) - region_movil.at<uchar>(Point2i(x, y)), 2);
 				}
-
-				// Si es el primer error calculado, o es menor que el error que ya había, actualizamos el error mínimo encontrado
-				// y la traslación necesaria para llegar a ese error.
-				if (traslacion == 0 || error < error_min){
-					error_min = error;
-					num_pixels_traslacion = traslacion;
-				}
-
-				// Actualizamos parámetros para la siguiente iteración.
-				error = 0.0;
-				traslacion++;
-			}			
-		}
-	}
-	// Si la transición es de izquierda a derecha se hace lo mismo cambiando el sentido. La región fija pertenece a la
-	// imágen 1 y la región móvil a la imagen 2.
-	//		|imagen1| ---> |imagen2|
-	else{
-		inicio_region_fija = Point2i(_imagen1.size().width - size_region.width, _imagen1.size().height / 4);
-		Mat region_fija = Mat(_imagen1, Rect(inicio_region_fija, size_region));
-		while (dentro_imagen){
-
-			if (size_region.width + traslacion < _imagen2.cols)
-				inicio_region_movil = Point2i(traslacion, _imagen2.size().height / 4);
-			else
-				dentro_imagen = false;
-
-			if (dentro_imagen){
-				Mat region_movil = Mat(_imagen2, Rect(inicio_region_movil, size_region));
-
-				for (int x = 0; x < region_movil.cols; x++){
-					for (int y = 0; y < region_movil.rows; y++){
-						error += pow(region_movil.at<uchar>(Point2i(x, y)) - region_fija.at<uchar>(Point2i(x, y)), 2);
-					}
-				}
-
-				if (traslacion == 0 || error < error_min){
-					error_min = error;
-					num_pixels_traslacion = traslacion;
-				}
-
-				error = 0.0;
-				traslacion++;
 			}
-		}
+
+			// Si es el primer error calculado, o es menor que el error que ya había, actualizamos el error mínimo encontrado
+			// y la traslación necesaria para llegar a ese error.
+			if (traslacion == 0 || error < error_min){
+				error_min = error;
+				num_pixels_traslacion = traslacion;
+			}
+
+			// Actualizamos parámetros para la siguiente iteración.
+			error = 0.0;
+			traslacion++;
+		}			
 	}
 
-	return num_pixels_traslacion + ancho_region;
+	return num_pixels_traslacion + ancho_region + desplazamiento_region;
 }
 
 Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true){
@@ -401,16 +381,10 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true){
 	int tipo = imagenes.at(0).type();
 
 	vector<int> traslaciones;
-	//vector<Mat> PCilindrica, PEsferica;
-	//vector<Mat> Recorte_PCilindrica, Recorte_PEsferica;
 	vector<Mat> ProyeccionImagen, RecorteProyeccion;
 	Mat panorama;
 	Point2i posicion_de_copiado = Point2i(0, 0);
 	Mat roi;
-
-	// Calculamos la traslación relativa entre cada pareja de imágenes.
-	//for (int i = 1; i < imagenes.size(); i++)
-		//traslaciones.push_back(calcular_traslacion_relativa(imagenes.at(i - 1), imagenes.at(i)));
 
 	// Realizamos la proyección seleccionada de las imágenes.
 	if (cilindrico)
@@ -438,11 +412,8 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true){
 	// Vamos añadiendo el resto de imágenes.
 	for (int i = 0; i < traslaciones.size(); i++){
 		posicion_de_copiado.x = posicion_de_copiado.x + (RecorteProyeccion.at(i + 1).cols - traslaciones.at(i));
-		cout << "Posicion x: " << posicion_de_copiado.x << endl;
 		roi = Mat(panorama, Rect(posicion_de_copiado, RecorteProyeccion.at(i + 1).size()));
-		RecorteProyeccion.at(i + 1).copyTo(roi);
-		pintaI(panorama);
-		
+		RecorteProyeccion.at(i + 1).copyTo(roi);		
 	}
 
 	pintaI(panorama);
@@ -462,7 +433,8 @@ int main(){
 	*	Realización del mosaico.
 	*/
 	cargar_imagenes(imagenes_mosaico, 1);
-	crearPanorama(imagenes_mosaico,true);
+	crearPanorama(imagenes_mosaico, true);
+	crearPanorama(imagenes_mosaico,false);
 
 	//PCilindrica = mapeadoCilindrico(imagenes_mosaico);
 	//PEsferica = mapeadoEsferico(imagenes_mosaico);
