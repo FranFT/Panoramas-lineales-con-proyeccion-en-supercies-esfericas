@@ -136,7 +136,6 @@ void crearMascara(Mat & mascara, int posMezcla){
 	// Calcular los valores de la región para el suavizado de la fusión
 	int anchoRegion = 20;
 	float valorRegion = (1.f / anchoRegion);
-	cout << valorRegion << endl;
 	int j = (mascara.cols - posMezcla) - (anchoRegion / 2);
 	for (int i = 1; i < anchoRegion + 1; i++){
 		mascara(Range::all(), Range(j, j + 1)) = 1.0 - (valorRegion*i);
@@ -307,8 +306,6 @@ Mat mapeadoCilindrico(const Mat& imagen, float f, float r){
 			if (imagen.channels() == 1){
 				if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
 					canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x, y);
-				else
-					cout << "Warning: Pixel fuera de rango." << endl;
 			}
 			else if (imagen.channels() == 3){
 				if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows){
@@ -316,8 +313,6 @@ Mat mapeadoCilindrico(const Mat& imagen, float f, float r){
 					canvas.at<Vec3b>(static_cast<int>(_x + cx), static_cast<int>(_y + cy))[1] = imagen.at<Vec3b>(x, y)[1];
 					canvas.at<Vec3b>(static_cast<int>(_x + cx), static_cast<int>(_y + cy))[2] = imagen.at<Vec3b>(x, y)[2];
 				}
-				else
-					cout << "Warning: Pixel fuera de rango." << endl;
 			}
 		}
 	}
@@ -358,8 +353,6 @@ Mat mapeadoEsferico(const Mat& imagen, float f, float r){
 			if (imagen.channels() == 1){
 				if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
 					canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x, y);
-				else
-					cout << "Warning: Pixel fuera de rango." << endl;
 			}
 			else if (imagen.channels() == 3){
 				if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows){
@@ -367,8 +360,6 @@ Mat mapeadoEsferico(const Mat& imagen, float f, float r){
 					canvas.at<Vec3b>(static_cast<int>(_x + cx), static_cast<int>(_y + cy))[1] = imagen.at<Vec3b>(x, y)[1];
 					canvas.at<Vec3b>(static_cast<int>(_x + cx), static_cast<int>(_y + cy))[2] = imagen.at<Vec3b>(x, y)[2];
 				}
-				else
-					cout << "Warning: Pixel fuera de rango." << endl;
 			}
 		}
 	}
@@ -437,10 +428,11 @@ void prueba_de_mapeado(const Mat& imagen){
 	pintaMI(PEsfericas, "P.Esferica con distintos valores de F");
 }
 // Ajusta los bordes laterales de la imagen.
-vector<Mat> recortar(const vector<Mat>& imagenes){
+vector<Mat> recortar(const vector<Mat>& imagenes, bool cilindrico=true){
 	// Variables necesarias
 	vector<Mat> salida;
 	vector<Mat>::const_iterator it;
+	bool recortado = false;
 	int mitad;
 	int topeIzquierda = -1;
 	int topeDerecha = -1;
@@ -466,7 +458,32 @@ vector<Mat> recortar(const vector<Mat>& imagenes){
 
 		// Copiamos la sección deseada.
 		Mat recortada = Mat((*it),Rect(topeIzquierda,0,(*it).cols-(topeIzquierda+((*it).cols-topeDerecha)),(*it).rows));
-		salida.push_back(recortada);
+
+		if (cilindrico){
+			for (int i = 0; i < recortada.rows && !recortado; i++){
+				if (recortada.at<uchar>(Point2i(0, i)) != NULL){
+					Mat recorte_horizontal = Mat(recortada, Rect(Point2i(0,i),Size(recortada.cols, recortada.rows-(2*i))));
+					recortado = true;
+					salida.push_back(recorte_horizontal);
+				}
+			}
+
+			recortado = false;
+		}
+		else{
+			for (int i = 0; i < recortada.rows && !recortado; i++){
+				for (int j = 0; j < recortada.cols && !recortado; j++){
+					if (recortada.at<uchar>(Point2i(j, i)) != NULL){
+						Mat recorte_horizontal = Mat(recortada, Rect(Point2i(j, i), Size(recortada.cols - (2*j), recortada.rows - (2 * i))));
+						recortado = true;
+						salida.push_back(recorte_horizontal);
+					}
+				}					
+			}
+
+			recortado = false;
+
+		}
 	}
 
 	return salida;
@@ -474,6 +491,7 @@ vector<Mat> recortar(const vector<Mat>& imagenes){
 
 int calcular_traslacion_relativa(const Mat& imagen1, const Mat& imagen2, bool cilindrico = true){
 	// Variables necesarias.
+	cout << "Escaneando imagenes: Estimando traslacion... " << endl;
 	int ancho_region, alto_region, traslacion, desplazamiento_region;
 	int num_pixels_traslacion = 0;
 	bool dentro_imagen = true;
@@ -549,7 +567,7 @@ int calcular_traslacion_relativa(const Mat& imagen1, const Mat& imagen2, bool ci
 	return num_pixels_traslacion + ancho_region + desplazamiento_region;
 }
 
-Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true){
+Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool burt_adelson = true){
 	int ancho = 0;
 	int tipo = imagenes.at(0).type();
 
@@ -566,52 +584,44 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true){
 		ProyeccionImagen = mapeadoEsferico(imagenes);
 
 	// Ajustamos los bordes derecho e izquierdo.
-	RecorteProyeccion = recortar(ProyeccionImagen);
+	RecorteProyeccion = recortar(ProyeccionImagen, cilindrico);
 
 	// Calculo la traslación necesaria para cada par de imágenes.
 	for (int i = 0; i < imagenes.size()-1; i++)
 		traslaciones.push_back(calcular_traslacion_relativa(RecorteProyeccion.at(i), RecorteProyeccion.at(i + 1)));
 
-	// Calculo el ancho final del panorama.
-	ancho = RecorteProyeccion.at(0).cols;
-	for (int i = 0; i < traslaciones.size(); i++)
-		ancho = ancho + (RecorteProyeccion.at(i + 1).cols - traslaciones.at(i));
-		
-	// Inicialmente el panorama contiene la primera imagen por la izquierda.
-	panorama = Mat(RecorteProyeccion.at(0).rows, RecorteProyeccion.at(0).cols, tipo);
-	roi = Mat(panorama, Rect(posicion_de_copiado, RecorteProyeccion.at(0).size()));
-	RecorteProyeccion.at(0).copyTo(roi);
+	if (burt_adelson){
+		// Inicialmente el panorama contiene la primera imagen por la izquierda.
+		panorama = Mat(RecorteProyeccion.at(0).rows, RecorteProyeccion.at(0).cols, tipo);
+		roi = Mat(panorama, Rect(posicion_de_copiado, RecorteProyeccion.at(0).size()));
+		RecorteProyeccion.at(0).copyTo(roi);
 
-	for (int i = 0; i < traslaciones.size(); i++){
-		mezclado = mezclaImagenes(panorama, RecorteProyeccion.at(i + 1), traslaciones.at(i), panorama.cols + RecorteProyeccion.at(i + 1).cols - traslaciones.at(i));
-		panorama = mezclado.clone();
-		pintaI(panorama);
+		for (int i = 0; i < traslaciones.size(); i++){
+			mezclado = mezclaImagenes(panorama, RecorteProyeccion.at(i + 1), traslaciones.at(i), panorama.cols + RecorteProyeccion.at(i + 1).cols - traslaciones.at(i));
+			panorama = mezclado.clone();
+		}
+	}
+	else{
+		// Calculo el ancho final del panorama.
+		ancho = RecorteProyeccion.at(0).cols;
+		for (int i = 0; i < traslaciones.size(); i++)
+			ancho = ancho + (RecorteProyeccion.at(i + 1).cols - traslaciones.at(i));
+
+		// Inicialmente el panorama contiene la primera imagen por la izquierda.
+		panorama = Mat(RecorteProyeccion.at(0).rows, ancho, tipo);
+		roi = Mat(panorama, Rect(posicion_de_copiado, RecorteProyeccion.at(0).size()));
+		RecorteProyeccion.at(0).copyTo(roi);
+
+		// Vamos añadiendo el resto de imágenes.
+		for (int i = 0; i < traslaciones.size(); i++){
+			posicion_de_copiado.x = posicion_de_copiado.x + (RecorteProyeccion.at(i + 1).cols - traslaciones.at(i));
+			roi = Mat(panorama, Rect(posicion_de_copiado, RecorteProyeccion.at(i + 1).size()));
+			RecorteProyeccion.at(i + 1).copyTo(roi);
+		}
 	}
 
+	//panorama = recortadoHorizontal(panorama);
 
-	pintaI(panorama);
-
-
-
-
-
-
-	/*panorama = Mat(RecorteProyeccion.at(0).rows, ancho, tipo);
-	roi = Mat(panorama, Rect(posicion_de_copiado, RecorteProyeccion.at(0).size()));
-	RecorteProyeccion.at(0).copyTo(roi);
-
-
-	Mat mezclado = mezclaImagenes(RecorteProyeccion.at(1), RecorteProyeccion.at(2), traslaciones.at(1), RecorteProyeccion.at(1).cols + RecorteProyeccion.at(2).cols - traslaciones.at(1));
-	pintaI(mezclado);
-
-	// Vamos añadiendo el resto de imágenes.
-	for (int i = 0; i < traslaciones.size(); i++){
-		posicion_de_copiado.x = posicion_de_copiado.x + (RecorteProyeccion.at(i + 1).cols - traslaciones.at(i));
-		roi = Mat(panorama, Rect(posicion_de_copiado, RecorteProyeccion.at(i + 1).size()));
-		RecorteProyeccion.at(i + 1).copyTo(roi);		
-	}
-
-	pintaI(panorama);*/
 	return panorama;
 }
 
@@ -622,13 +632,24 @@ int main(){
 	vector<Mat> imagenes_mosaico;
 
 	// Prueba del mapeado.
-	//tablero = leeimagen("imagenes/Tablero.png", 0);
-	//prueba_de_mapeado(tablero);
+	tablero = leeimagen("imagenes/Tablero.png", 0);
+	prueba_de_mapeado(tablero);
 
 	/*
 	*	Realización del mosaico.
 	*/
 	cargar_imagenes(imagenes_mosaico, 1);
-	crearPanorama(imagenes_mosaico, true);
-	crearPanorama(imagenes_mosaico,false);
+
+	Mat panorama1 = crearPanorama(imagenes_mosaico, true, false);
+	pintaI(panorama1, "Panorama cilindrico sin mezclado Burt Adelson");
+
+	Mat panorama2 = crearPanorama(imagenes_mosaico, true, true);
+	pintaI(panorama2, "Panorama cilindrico con mezclado Burt Adelson");
+
+	Mat panorama3 = crearPanorama(imagenes_mosaico, false, false);
+	pintaI(panorama3, "Panorama esferico sin mezclado Burt Adelson");
+
+	Mat panorama4 = crearPanorama(imagenes_mosaico, false, true);
+	pintaI(panorama4, "Panorama esferico con mezclado Burt Adelson");
+
 }
