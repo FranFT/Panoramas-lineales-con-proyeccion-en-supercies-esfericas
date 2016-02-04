@@ -4,9 +4,35 @@ using namespace std;
 using namespace cv;
 
 /**********************************************
-************ Variables globales ***************
+********** Declaración anticipada *************
 ***********************************************/
 
+//// Funciones auxiliares.
+//Mat leeimagen(char* filename, int flagColor);
+//void pintaI(const Mat& im, char* nombre_ventana = "imagen");
+//void pintaI(const vector<Mat>& imagenes, char* nombre_ventana = "imagen");
+//void pintaMI(const vector<Mat> &imagenes_solucion, char* nombre = "solucion");
+//
+//// Mapeado de coordenadas
+//Mat mapeadoCilindrico(const Mat& imagen, float f, float r);
+//Mat mapeadoEsferico(const Mat& imagen, float f, float r);
+//vector<Mat> mapeadoCilindrico(const vector<Mat>& imagenes);
+//vector<Mat> mapeadoEsferico(const vector<Mat>& imagenes);
+//
+//// Funcionalidad
+//void cargar_imagenes(vector<Mat>& imagenes, int color = 0);
+//void prueba_de_mapeado(const Mat& imagen);
+//vector<Mat> recortar(const vector<Mat>& imagenes);
+//int calcular_traslacion_relativa(const Mat& imagen1, const Mat& imagen2, bool cilindrico = true);
+//Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true);
+//
+//// Método de Burt-Adelson
+//void crearMascara(Mat & mascara, int posMezcla);
+//void construirPiramideLap(Mat & im, Mat & imUltimo, vector<Mat_<Vec3f> > & pirLapIm, int niveles);
+//void construirPiramideGaus(Mat & mascara, vector<Mat_<Vec3f> > & pirGausMasc, vector<Mat_<Vec3f> > & pirLapIm, Mat & imUltimo, int niveles);
+//void mezclarPiramides(vector<Mat_<Vec3f> > & pirLapIm1, vector<Mat_<Vec3f> > & pirLapIm2, vector<Mat_<Vec3f> > & pirLapResultado, vector<Mat_<Vec3f> > & pirGausMascara, Mat & im1Ultimo, Mat & im2Ultimo, Mat & resUltimo, int niveles);
+//void reconstruirPiramideResultado(vector<Mat_<Vec3f> > & pirResultado, Mat & resUltimo, Mat & resultado, int niveles);
+//Mat mezclaImagenes(Mat & im1, Mat & im2);
 
 
 /**********************************************
@@ -96,6 +122,141 @@ void pintaMI(const vector<Mat> &imagenes_solucion, char* nombre = "solucion"){
 	pintaI(solucion, nombre);
 }
 
+
+/**********************************************
+*********** Método de Burt-Adelson ************
+***********************************************/
+
+// Crea la mascara necesaria para fundir las dos imágenes
+void crearMascara(Mat & mascara, int posMezcla){
+
+	// Rellena la mascara de 1s hasta donde se mezclan las dos imágenes
+	mascara(Range::all(), Range(0, posMezcla)) = 1.0;
+
+	// Calcular los valores de la región para el suavizado de la fusión
+	int anchoRegion = 50;
+	float valorRegion = (1.f / anchoRegion);
+	cout << valorRegion << endl;
+	int j = posMezcla - (anchoRegion / 2);
+	for (int i = 1; i < anchoRegion + 1; i++){
+		mascara(Range::all(), Range(j, j + 1)) = 1.0 - (valorRegion*i);
+		j++;
+	}
+}
+
+// Función que crea la pirámide Laplaciana de una imagen
+void construirPiramideLap(Mat & im, Mat & imUltimo, vector<Mat_<Vec3f> > & pirLapIm, int niveles){
+
+	Mat temp1, temp2, temp3;
+	Mat Lap;
+
+	// Generar la pirámide Laplaciana de la imagen
+	im.copyTo(temp1);
+	for (int i = 0; i < niveles; i++){
+		pyrDown(temp1, temp2);
+		pyrUp(temp2, temp3, temp1.size());
+		Lap = temp1 - temp3;
+		pirLapIm.push_back(Lap);
+		temp2.copyTo(temp1);
+	}
+
+	// Se guarda la transformación Gaussiana del último nivel de la pirámide
+	temp2.copyTo(imUltimo);
+}
+
+// Función que crea la pirámide Gaussiana de la máscara
+void construirPiramideGaus(Mat & mascara, vector<Mat_<Vec3f> > & pirGausMasc, vector<Mat_<Vec3f> > & pirLapIm, Mat & imUltimo, int niveles){
+
+	Mat actual;
+	// Generar la pirámide Laplaciana de la máscara
+	cvtColor(mascara, actual, CV_GRAY2BGR);
+	pirGausMasc.push_back(actual);
+	actual = mascara;
+	for (int i = 1; i < niveles + 1; i++){
+		Mat down;
+
+		if (pirLapIm.size() > i) {
+			pyrDown(actual, down, pirLapIm[i].size());
+		}
+		else {
+			pyrDown(actual, down, imUltimo.size());
+		}
+
+		Mat temp;
+		cvtColor(down, temp, CV_GRAY2BGR);
+		pirGausMasc.push_back(temp);
+		down.copyTo(actual);
+	}
+
+}
+
+// Función que mezcla las dos pirámides Laplacianas con la Gaussiana
+void mezclarPiramides(vector<Mat_<Vec3f> > & pirLapIm1, vector<Mat_<Vec3f> > & pirLapIm2, vector<Mat_<Vec3f> > & pirLapResultado, vector<Mat_<Vec3f> > & pirGausMascara, Mat & im1Ultimo, Mat & im2Ultimo, Mat & resUltimo, int niveles){
+
+	// Se mezclan los últimos niveles Gaussianos guardados después de crear la pirámide Laplaciana
+	Mat mezclaNivel;
+	resUltimo = (im1Ultimo.mul(pirGausMascara.back())) + (im2Ultimo.mul(Scalar(1.0, 1.0, 1.0) - pirGausMascara.back()));
+
+	// Se mezclan el resto de niveles de cada una de las pirámides
+	for (int i = 0; i < niveles; i++){
+		mezclaNivel = (pirLapIm1.at(i).mul(pirGausMascara.at(i))) + (pirLapIm2.at(i).mul(Scalar(1.0, 1.0, 1.0) - pirGausMascara.at(i)));
+		pirLapResultado.push_back(mezclaNivel);
+	}
+
+}
+
+// Reconstrucción de la imagen resultado con la pirámide
+void reconstruirPiramideResultado(vector<Mat_<Vec3f> > & pirResultado, Mat & resUltimo, Mat & resultado, int niveles){
+
+	// Se reconstruye la imagen resultante de la fusión de pirámides
+	Mat temp1 = resUltimo;
+	for (int i = niveles - 1; i >= 0; i--){
+		Mat up;
+		pyrUp(temp1, up, pirResultado.at(i).size());
+		temp1 = up + pirResultado.at(i);
+
+	}
+	temp1.copyTo(resultado);
+}
+
+// Función general que fusiona dos imágenes
+Mat mezclaImagenes(Mat & im1, Mat & im2){
+
+	// Variables de almacenamiento
+	int niveles = 3;
+	vector<Mat_<Vec3f> > piramideLaplacianIm1, piramideLaplacianIm2;
+	vector<Mat_<Vec3f> > piramideGaussianaMascara;
+	vector<Mat_<Vec3f> > piramideResultado;
+	Mat im1Ultimo, im2Ultimo, resUltimo;
+
+	// Conversión del tipo de las imágenes de entrada a escala de grises
+	Mat_<Vec3f> im1Aux; im1.convertTo(im1Aux, CV_32F, 1.0 / 255.0);
+	Mat_<Vec3f> im2Aux; im2.convertTo(im2Aux, CV_32F, 1.0 / 255.0);
+	Mat_<Vec3f> imagenResultado;
+
+	// Creación de la máscara con la difusión colocada en la unión de ambas imágenes
+	//Mat_<float> mascara(im1Aux.rows, ancho, 0.0);
+	Mat_<float> mascara(im1Aux.rows, im1Aux.cols, 0.0);
+	int desplazamiento = mascara.cols / 2;
+	crearMascara(mascara, desplazamiento);
+
+	// Construcción de las pirámides Laplacianas de las imágenes y de la Gaussiana de la máscara
+	construirPiramideLap(im1Aux, im1Ultimo, piramideLaplacianIm1, niveles);
+	construirPiramideLap(im2Aux, im2Ultimo, piramideLaplacianIm2, niveles);
+	construirPiramideGaus(mascara, piramideGaussianaMascara, piramideLaplacianIm1, im1Ultimo, niveles);
+
+	// Mezclado de las pirámides Laplacianas con la Gaussiana
+	mezclarPiramides(piramideLaplacianIm1, piramideLaplacianIm2, piramideResultado, piramideGaussianaMascara, im1Ultimo, im2Ultimo, resUltimo, niveles);
+
+	// Reconstrucción de la pirámide resultado
+	reconstruirPiramideResultado(piramideResultado, resUltimo, imagenResultado, niveles);
+
+	// Formateo de la imagen resultado
+	Mat salida; imagenResultado.convertTo(salida, CV_8U, 255.0);
+	return salida;
+}
+
+
 /**********************************************
 ********** Mapeado de coordenadas *************
 ***********************************************/
@@ -135,7 +296,7 @@ Mat mapeadoCilindrico(const Mat& imagen, float f, float r){
 				if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
 					canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x, y);
 				else
-					cout << "Error: Coordenadas fuera de rango." << endl;
+					cout << "Warning: Pixel fuera de rango." << endl;
 			}
 			else if (imagen.channels() == 3){
 				if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows){
@@ -144,7 +305,7 @@ Mat mapeadoCilindrico(const Mat& imagen, float f, float r){
 					canvas.at<Vec3b>(static_cast<int>(_x + cx), static_cast<int>(_y + cy))[2] = imagen.at<Vec3b>(x, y)[2];
 				}
 				else
-					cout << "Error: Coordenadas fuera de rango." << endl;
+					cout << "Warning: Pixel fuera de rango." << endl;
 			}
 		}
 	}
@@ -186,7 +347,7 @@ Mat mapeadoEsferico(const Mat& imagen, float f, float r){
 				if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows)
 					canvas.at<uchar>(static_cast<int>(_x + cx), static_cast<int>(_y + cy)) = imagen.at<uchar>(x, y);
 				else
-					cout << "Error: Coordenadas fuera de rango." << endl;
+					cout << "Warning: Pixel fuera de rango." << endl;
 			}
 			else if (imagen.channels() == 3){
 				if (_x + cx > 0 && _x < canvas.rows && _y + cy > 0 && _y < canvas.rows){
@@ -195,7 +356,7 @@ Mat mapeadoEsferico(const Mat& imagen, float f, float r){
 					canvas.at<Vec3b>(static_cast<int>(_x + cx), static_cast<int>(_y + cy))[2] = imagen.at<Vec3b>(x, y)[2];
 				}
 				else
-					cout << "Error: Coordenadas fuera de rango." << endl;
+					cout << "Warning: Pixel fuera de rango." << endl;
 			}
 		}
 	}
@@ -409,6 +570,11 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true){
 	roi = Mat(panorama, Rect(posicion_de_copiado, RecorteProyeccion.at(0).size()));
 	RecorteProyeccion.at(0).copyTo(roi);
 
+	Mat mezclado = mezclaImagenes(RecorteProyeccion.at(0), RecorteProyeccion.at(1));
+	pintaI(mezclado);
+	//Mat mezclado = mezclaImagenes(RecorteProyeccion.at(0), RecorteProyeccion.at(1), traslaciones.at(0), 50);
+	//pintaI(mezclado);
+
 	// Vamos añadiendo el resto de imágenes.
 	for (int i = 0; i < traslaciones.size(); i++){
 		posicion_de_copiado.x = posicion_de_copiado.x + (RecorteProyeccion.at(i + 1).cols - traslaciones.at(i));
@@ -419,6 +585,7 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true){
 	pintaI(panorama);
 	return panorama;
 }
+
 
 int main(){
 	// Variables necesarias.
@@ -435,8 +602,4 @@ int main(){
 	cargar_imagenes(imagenes_mosaico, 1);
 	crearPanorama(imagenes_mosaico, true);
 	crearPanorama(imagenes_mosaico,false);
-
-	//PCilindrica = mapeadoCilindrico(imagenes_mosaico);
-	//PEsferica = mapeadoEsferico(imagenes_mosaico);
-
 }
