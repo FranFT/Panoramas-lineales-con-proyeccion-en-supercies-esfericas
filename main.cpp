@@ -131,17 +131,18 @@ void pintaMI(const vector<Mat> &imagenes_solucion, char* nombre = "solucion"){
 void crearMascara(Mat & mascara, int posMezcla){
 
 	// Rellena la mascara de 1s hasta donde se mezclan las dos imágenes
-	mascara(Range::all(), Range(0, posMezcla)) = 1.0;
+	mascara(Range::all(), Range(0, mascara.cols - posMezcla)) = 1.0;
 
 	// Calcular los valores de la región para el suavizado de la fusión
-	int anchoRegion = 50;
+	int anchoRegion = 20;
 	float valorRegion = (1.f / anchoRegion);
 	cout << valorRegion << endl;
-	int j = posMezcla - (anchoRegion / 2);
+	int j = (mascara.cols - posMezcla) - (anchoRegion / 2);
 	for (int i = 1; i < anchoRegion + 1; i++){
 		mascara(Range::all(), Range(j, j + 1)) = 1.0 - (valorRegion*i);
 		j++;
 	}
+	//cout << mascara << endl;
 }
 
 // Función que crea la pirámide Laplaciana de una imagen
@@ -554,9 +555,9 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true){
 
 	vector<int> traslaciones;
 	vector<Mat> ProyeccionImagen, RecorteProyeccion;
-	Mat panorama;
+	Mat panorama, _panorama;
 	Point2i posicion_de_copiado = Point2i(0, 0);
-	Mat roi;
+	Mat roi, mezclado;
 
 	// Realizamos la proyección seleccionada de las imágenes.
 	if (cilindrico)
@@ -577,7 +578,25 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true){
 		ancho = ancho + (RecorteProyeccion.at(i + 1).cols - traslaciones.at(i));
 		
 	// Inicialmente el panorama contiene la primera imagen por la izquierda.
-	panorama = Mat(RecorteProyeccion.at(0).rows, ancho, tipo);
+	panorama = Mat(RecorteProyeccion.at(0).rows, RecorteProyeccion.at(0).cols, tipo);
+	roi = Mat(panorama, Rect(posicion_de_copiado, RecorteProyeccion.at(0).size()));
+	RecorteProyeccion.at(0).copyTo(roi);
+
+	for (int i = 0; i < traslaciones.size(); i++){
+		mezclado = mezclaImagenes(panorama, RecorteProyeccion.at(i + 1), traslaciones.at(i), panorama.cols + RecorteProyeccion.at(i + 1).cols - traslaciones.at(i));
+		panorama = mezclado.clone();
+		pintaI(panorama);
+	}
+
+
+	pintaI(panorama);
+
+
+
+
+
+
+	/*panorama = Mat(RecorteProyeccion.at(0).rows, ancho, tipo);
 	roi = Mat(panorama, Rect(posicion_de_copiado, RecorteProyeccion.at(0).size()));
 	RecorteProyeccion.at(0).copyTo(roi);
 
@@ -592,7 +611,7 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true){
 		RecorteProyeccion.at(i + 1).copyTo(roi);		
 	}
 
-	pintaI(panorama);
+	pintaI(panorama);*/
 	return panorama;
 }
 
