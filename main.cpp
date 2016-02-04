@@ -4,38 +4,6 @@ using namespace std;
 using namespace cv;
 
 /**********************************************
-********** Declaración anticipada *************
-***********************************************/
-
-//// Funciones auxiliares.
-//Mat leeimagen(char* filename, int flagColor);
-//void pintaI(const Mat& im, char* nombre_ventana = "imagen");
-//void pintaI(const vector<Mat>& imagenes, char* nombre_ventana = "imagen");
-//void pintaMI(const vector<Mat> &imagenes_solucion, char* nombre = "solucion");
-//
-//// Mapeado de coordenadas
-//Mat mapeadoCilindrico(const Mat& imagen, float f, float r);
-//Mat mapeadoEsferico(const Mat& imagen, float f, float r);
-//vector<Mat> mapeadoCilindrico(const vector<Mat>& imagenes);
-//vector<Mat> mapeadoEsferico(const vector<Mat>& imagenes);
-//
-//// Funcionalidad
-//void cargar_imagenes(vector<Mat>& imagenes, int color = 0);
-//void prueba_de_mapeado(const Mat& imagen);
-//vector<Mat> recortar(const vector<Mat>& imagenes);
-//int calcular_traslacion_relativa(const Mat& imagen1, const Mat& imagen2, bool cilindrico = true);
-//Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true);
-//
-//// Método de Burt-Adelson
-//void crearMascara(Mat & mascara, int posMezcla);
-//void construirPiramideLap(Mat & im, Mat & imUltimo, vector<Mat_<Vec3f> > & pirLapIm, int niveles);
-//void construirPiramideGaus(Mat & mascara, vector<Mat_<Vec3f> > & pirGausMasc, vector<Mat_<Vec3f> > & pirLapIm, Mat & imUltimo, int niveles);
-//void mezclarPiramides(vector<Mat_<Vec3f> > & pirLapIm1, vector<Mat_<Vec3f> > & pirLapIm2, vector<Mat_<Vec3f> > & pirLapResultado, vector<Mat_<Vec3f> > & pirGausMascara, Mat & im1Ultimo, Mat & im2Ultimo, Mat & resUltimo, int niveles);
-//void reconstruirPiramideResultado(vector<Mat_<Vec3f> > & pirResultado, Mat & resUltimo, Mat & resultado, int niveles);
-//Mat mezclaImagenes(Mat & im1, Mat & im2);
-
-
-/**********************************************
 *********** Funciones auxiliares **************
 ***********************************************/
 //// Entrada / Salida
@@ -141,7 +109,6 @@ void crearMascara(Mat & mascara, int posMezcla){
 		mascara(Range::all(), Range(j, j + 1)) = 1.0 - (valorRegion*i);
 		j++;
 	}
-	//cout << mascara << endl;
 }
 
 // Función que crea la pirámide Laplaciana de una imagen
@@ -237,8 +204,6 @@ Mat mezclaImagenes(Mat & im1, Mat & im2, int desplazamiento, int ancho){
 
 	// Creación de la máscara con la difusión colocada en la unión de ambas imágenes
 	Mat_<float> mascara(im1Aux.rows, ancho, 0.0);
-	//Mat_<float> mascara(im1Aux.rows, im1Aux.cols, 0.0);
-	//int desplazamiento = mascara.cols / 2;
 	crearMascara(mascara, desplazamiento);
 
 	Mat_<Vec3f> _im1Aux = Mat::zeros(im1Aux.rows, ancho, im1Aux.type());
@@ -458,7 +423,8 @@ vector<Mat> recortar(const vector<Mat>& imagenes, bool cilindrico=true){
 
 		// Copiamos la sección deseada.
 		Mat recortada = Mat((*it),Rect(topeIzquierda,0,(*it).cols-(topeIzquierda+((*it).cols-topeDerecha)),(*it).rows));
-
+		
+		// Recorte de las esquinas que aparecen en negro.
 		if (cilindrico){
 			for (int i = 0; i < recortada.rows && !recortado; i++){
 				if (recortada.at<uchar>(Point2i(0, i)) != NULL){
@@ -619,8 +585,6 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool burt
 			RecorteProyeccion.at(i + 1).copyTo(roi);
 		}
 	}
-
-	//panorama = recortadoHorizontal(panorama);
 
 	return panorama;
 }
