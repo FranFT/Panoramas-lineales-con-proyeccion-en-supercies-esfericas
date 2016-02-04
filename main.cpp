@@ -220,7 +220,7 @@ void reconstruirPiramideResultado(vector<Mat_<Vec3f> > & pirResultado, Mat & res
 }
 
 // Función general que fusiona dos imágenes
-Mat mezclaImagenes(Mat & im1, Mat & im2){
+Mat mezclaImagenes(Mat & im1, Mat & im2, int desplazamiento, int ancho){
 
 	// Variables de almacenamiento
 	int niveles = 3;
@@ -228,6 +228,7 @@ Mat mezclaImagenes(Mat & im1, Mat & im2){
 	vector<Mat_<Vec3f> > piramideGaussianaMascara;
 	vector<Mat_<Vec3f> > piramideResultado;
 	Mat im1Ultimo, im2Ultimo, resUltimo;
+	Mat roi;
 
 	// Conversión del tipo de las imágenes de entrada a escala de grises
 	Mat_<Vec3f> im1Aux; im1.convertTo(im1Aux, CV_32F, 1.0 / 255.0);
@@ -235,14 +236,24 @@ Mat mezclaImagenes(Mat & im1, Mat & im2){
 	Mat_<Vec3f> imagenResultado;
 
 	// Creación de la máscara con la difusión colocada en la unión de ambas imágenes
-	//Mat_<float> mascara(im1Aux.rows, ancho, 0.0);
-	Mat_<float> mascara(im1Aux.rows, im1Aux.cols, 0.0);
-	int desplazamiento = mascara.cols / 2;
+	Mat_<float> mascara(im1Aux.rows, ancho, 0.0);
+	//Mat_<float> mascara(im1Aux.rows, im1Aux.cols, 0.0);
+	//int desplazamiento = mascara.cols / 2;
 	crearMascara(mascara, desplazamiento);
 
+	Mat_<Vec3f> _im1Aux = Mat::zeros(im1Aux.rows, ancho, im1Aux.type());
+	roi = Mat(_im1Aux, Rect(Point2i(0, 0), im1Aux.size()));
+	im1Aux.copyTo(roi);
+
+
+	Mat_<Vec3f> _im2Aux = Mat::zeros(im2Aux.rows, ancho, im2Aux.type());
+	roi = Mat(_im2Aux, Rect(Point2i(ancho - im2Aux.cols, 0), im2Aux.size()));
+	im2Aux.copyTo(roi);
+
+	
 	// Construcción de las pirámides Laplacianas de las imágenes y de la Gaussiana de la máscara
-	construirPiramideLap(im1Aux, im1Ultimo, piramideLaplacianIm1, niveles);
-	construirPiramideLap(im2Aux, im2Ultimo, piramideLaplacianIm2, niveles);
+	construirPiramideLap(_im1Aux, im1Ultimo, piramideLaplacianIm1, niveles);
+	construirPiramideLap(_im2Aux, im2Ultimo, piramideLaplacianIm2, niveles);
 	construirPiramideGaus(mascara, piramideGaussianaMascara, piramideLaplacianIm1, im1Ultimo, niveles);
 
 	// Mezclado de las pirámides Laplacianas con la Gaussiana
@@ -570,10 +581,9 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true){
 	roi = Mat(panorama, Rect(posicion_de_copiado, RecorteProyeccion.at(0).size()));
 	RecorteProyeccion.at(0).copyTo(roi);
 
-	Mat mezclado = mezclaImagenes(RecorteProyeccion.at(0), RecorteProyeccion.at(1));
+
+	Mat mezclado = mezclaImagenes(RecorteProyeccion.at(1), RecorteProyeccion.at(2), traslaciones.at(1), RecorteProyeccion.at(1).cols + RecorteProyeccion.at(2).cols - traslaciones.at(1));
 	pintaI(mezclado);
-	//Mat mezclado = mezclaImagenes(RecorteProyeccion.at(0), RecorteProyeccion.at(1), traslaciones.at(0), 50);
-	//pintaI(mezclado);
 
 	// Vamos añadiendo el resto de imágenes.
 	for (int i = 0; i < traslaciones.size(); i++){
