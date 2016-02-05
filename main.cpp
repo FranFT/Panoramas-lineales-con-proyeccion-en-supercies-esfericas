@@ -372,7 +372,7 @@ vector<Mat> mapeadoEsferico(const vector<Mat>& imagenes){
 void cargar_imagenes(vector<Mat>& imagenes, int color = 0){
 	int num_imagenes = 5;
 	char* nombres[] = { "imagenes/img1.jpg", "imagenes/img2.jpg", "imagenes/img3.jpg",
-		"imagenes/img4.jpg", "imagenes/img5.jpg"};
+		"imagenes/img4.jpg", "imagenes/img5.jpg", "imagenes/img6.jpg", "imagenes/img7.jpg" };
 	for (int i = 0; i < num_imagenes; i++){
 		Mat temp = leeimagen(nombres[i], color);
 		imagenes.push_back(temp);
@@ -393,7 +393,7 @@ void prueba_de_mapeado(const Mat& imagen){
 	pintaMI(PEsfericas, "P.Esferica con distintos valores de F");
 }
 // Ajusta los bordes laterales de la imagen.
-vector<Mat> recortar(const vector<Mat>& imagenes, bool cilindrico=true){
+vector<Mat> recortar(const vector<Mat>& imagenes, bool cilindrico){
 	// Variables necesarias
 	vector<Mat> salida;
 	vector<Mat>::const_iterator it;
@@ -589,21 +589,32 @@ Mat crearPanorama(const vector<Mat>& imagenes, bool cilindrico = true, bool burt
 	return panorama;
 }
 
+void prueba_recortado(const vector<Mat>& imagenes){
+	// Proyecto imagenes.
+	vector<Mat> imagenesC = mapeadoCilindrico(imagenes);
+	pintaI(imagenesC.at(0), "Imagen proyectada");
+
+	// Recorto imagenes proyectadas.
+	vector<Mat> _imagenesC = recortar(imagenesC,true);
+	pintaI(_imagenesC.at(0), "Imagen recortada");
+}
 
 int main(){
 	// Variables necesarias.
 	Mat tablero;
 	vector<Mat> imagenes_mosaico;
+	cargar_imagenes(imagenes_mosaico, 1);
 
 	// Prueba del mapeado.
 	tablero = leeimagen("imagenes/Tablero.png", 0);
 	prueba_de_mapeado(tablero);
 
+	// Prueba de recortado.
+	prueba_recortado(imagenes_mosaico);
+
 	/*
 	*	Realización del mosaico.
 	*/
-	cargar_imagenes(imagenes_mosaico, 1);
-
 	Mat panorama1 = crearPanorama(imagenes_mosaico, true, false);
 	pintaI(panorama1, "Panorama cilindrico sin mezclado Burt Adelson");
 
